@@ -112,14 +112,8 @@ You can configure the tool via environment variables:
 | OCR_PATH | optional | Path of an OCR server (see below) |
 | WEBSERVER | optional | activates GUI & API (default:false) (see below) |
 | PORT | optional | sets port for webserver (default: 80) |
-| DISABLE_GUI_SCANTOFILE | optional | deactivates button "Scan to file" (default: false) |
-| DISABLE_GUI_SCANTOEMAIL | optional | deactivates button "Scan to e-mail" |
-| DISABLE_GUI_SCANTOIMAGE | optional | deactivates button "Scan to image" |
-| DISABLE_GUI_SCANTOOCR | optional | deactivates button "Scan to OCR" |
-| RENAME_GUI_SCANTOFILE="Scan front pages" | optional | renames GUI button "Scan to file" to "Scan front pages" |
-| RENAME_GUI_SCANTOEMAIL="Scan rear pages" | optional | renames GUI button "Scan to email" to "Scan rear pages" |
-| RENAME_GUI_SCANTOIMAGE="Scan photo" | optional | renames GUI button "Scan to image" to "Scan photo" |
-| RENAME_GUI_SCANTOOCR="Scan High-Res" | optional | renames GUI button "Scan to OCR" to "Scan High-Res" |
+| ENABLE_GUI_SCANTOIMAGE | optional | shows the "Scan to image" button (hidden by default; only enable once you mount a working `scantoimage-*.sh`) |
+| ENABLE_GUI_SCANTOOCR | optional | shows the "Scan to OCR" button (hidden by default; only enable once you mount a working `scantoocr-*.sh`) |
 | USE_JPEG_COMPRESSION | optional | use JPEG compression when creating PDFs |
 | TELEGRAM_TOKEN | optional | If TELEGRAM_TOKEN and TELEGRAM_CHATID are set, then this sends notification |
 | TELEGRAM_CHATID | optional | If TELEGRAM_TOKEN and TELEGRAM_CHATID are set, then this sends notification |
@@ -178,16 +172,20 @@ This will call the OCR service at <https://192.168.1.101:8080/ocr.php>.
 This image comes with an integrated webserver, allowing you to control the scanning functions also via API or GUI.
 To activate the webserver, you need to set an according environment variable.
 By default, the image uses port 80, but you may configure that.
-Additionally, for the GUI, you can rename and hide individual functions.
-here is an example of the environment:
+
+The GUI is mobile-first and follows your device's light/dark theme automatically (with a manual toggle in the top-right). Out of the box it shows the two functions that actually do something, labelled honestly:
+
+- **Scan front pages** (`file` target) — starts a document and opens the ~2 minute window
+- **Scan rear pages** (`email` target) — scans the backs of the same stack; pages are interleaved automatically for fake-duplex
+
+The GUI also shows read-only "chips" for whatever post-processing you have configured (OCR, blank-page removal, FTP upload, Telegram, JPEG compression, resolution), so you can see what will happen to a scan.
+
+The "Scan to image" and "Scan to OCR" buttons are **hidden by default**, because the shipped `scantoimage-*.sh` / `scantoocr-*.sh` scripts are unimplemented stubs. Mount your own script and set the matching `ENABLE_GUI_*` variable to show the button. Button labels are fixed honest defaults; to reword or localize them, edit `html/settings.php`. Example environment:
 
 ```
 - WEBSERVER=true # optional, activates GUI & API
 - PORT=33355 # optional, sets port for webserver (default: 80)
-- DISABLE_GUI_SCANTOIMAGE=true # optional, deactivates button "Scan to image"
-- DISABLE_GUI_SCANTOOCR=true # optional, deactivates button "Scan to OCR"
-- RENAME_GUI_SCANTOFILE="Scan front pages" # optional, renames button "Scan to file" to "Scan front pages"
-- RENAME_GUI_SCANTOEMAIL="Scan rear pages" # optional, renames button "Scan to email" to "Scan rear pages"
+- ENABLE_GUI_SCANTOOCR=true # optional, show the "Scan to OCR" button (needs your own scantoocr script)
 ```
 
 #### GUI
@@ -237,10 +235,6 @@ services:
             - TZ=Europe/Berlin # optional, for correct time in scanned filenames
             - WEBSERVER=true # optional, activates GUI & API
             - PORT=33355 # optional, sets port for webserver (default: 80)
-            - DISABLE_GUI_SCANTOIMAGE=true # optional, deactivates button "Scan to image"
-            - DISABLE_GUI_SCANTOOCR=true # optional, deactivates button "Scan to OCR"
-            - RENAME_GUI_SCANTOFILE="Scan front pages" # optional, renames button "Scan to file" to "Scan front pages"
-            - RENAME_GUI_SCANTOEMAIL="Scan rear pages" # optional, renames button "Scan to email" to "Scan rear pages"
         restart: unless-stopped
 
     # optional, for OCR

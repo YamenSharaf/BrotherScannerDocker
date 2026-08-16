@@ -1,55 +1,60 @@
-<div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white" >
-
-<div class="list-group list-group-flush border-bottom scrollarea">
-
 <?php
-// Directory path
+// Returns an HTML fragment of recent scans, injected into the "Recent scans"
+// bottom sheet by index.php. One <a class="file-row"> per PDF, newest first.
+
 $directory = '/scans';
-
-// Get list of files and directories
-$files = scandir($directory);
-
-// Remove '.' and '..' from the list
+$files = @scandir($directory);
+if ($files === false) {
+    $files = array();
+}
 $files = array_diff($files, array('.', '..'));
 
-// Create an associative array with filenames and their modification times
 $filesWithMtime = array();
 foreach ($files as $file) {
     $filePath = $directory . '/' . $file;
-    if (is_file($filePath) && pathinfo($filePath, PATHINFO_EXTENSION) === 'pdf') { // Filter PDF files
+    if (is_file($filePath) && strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'pdf') {
         $filesWithMtime[$file] = array(
             'mtime' => filemtime($filePath),
-            'size' => filesize($filePath),
-            'permissions' => substr(sprintf('%o', fileperms($filePath)), -4),
-            'owner' => posix_getpwuid(fileowner($filePath))['name'],
-            'group' => posix_getgrgid(filegroup($filePath))['name'],
+            'size'  => filesize($filePath),
         );
     }
 }
 
-// Sort files by modification time (newest first)
-uasort($filesWithMtime, function($a, $b) {
+// Newest first
+uasort($filesWithMtime, function ($a, $b) {
     return $b['mtime'] <=> $a['mtime'];
 });
 
-// Output sorted files
-foreach ($filesWithMtime as $file => $attributes) {
-?>
-  <a href="/download.php?file=<?php echo $file; ?>" class="list-group-item list-group-item-action py-3 lh-tight" target="_blank"aria-current="true">
-    <div class="d-flex w-100 align-items-center justify-content-between">
-      <strong class="mb-1"><?php echo $file; ?></strong>
-      <small><?php echo date('D', $attributes['mtime']); ?></small>
-    </div>
-    <div class="col-12 mb-1 small"><?php echo number_format($attributes['size']); ?> Bytes</div>
-  </a>
-<?php
-
+/** Human-readable byte size. */
+function human_size($bytes)
+{
+    $units = array('B', 'KB', 'MB', 'GB');
+    $i = 0;
+    $n = (float) $bytes;
+    while ($n >= 1024 && $i < count($units) - 1) {
+        $n /= 1024;
+        $i++;
+    }
+    return ($i === 0 ? $n : number_format($n, 1)) . ' ' . $units[$i];
 }
-?>
 
+if (empty($filesWithMtime)) {
+    echo '<div class="empty">No scans yet</div>';
+    return;
+}
 
-  
-</div>
-</div>
-
-
+foreach ($filesWithMtime as $file => $attr) {
+    $href = '/download.php?file=' . rawurlencode($file);
+    $when = date('D j M · H:i', $attr['mtime']);
+    $size = human_size($attr['size']);
+    ?>
+    <a class="file-row" href="<?php echo htmlspecialchars($href); ?>" target="_blank" rel="noopener">
+        <i class="far fa-file-pdf f-ico"></i>
+        <span class="f-main">
+            <span class="f-name"><?php echo htmlspecialchars($file); ?></span>
+            <span class="f-meta"><?php echo htmlspecialchars($when . '  ·  ' . $size); ?></span>
+        </span>
+        <i class="fas fa-download f-dl"></i>
+    </a>
+    <?php
+}

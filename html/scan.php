@@ -3,7 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-include 'config.php';
+include 'settings.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $target = $_POST["target"];
@@ -12,10 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 if (empty($target)) {
-        header($_SERVER["SERVER_PROTOCOL"] . " 400 OK");
+        header($_SERVER["SERVER_PROTOCOL"] . " 400 Bad Request");
         die("Error: No scanning function selected (try append: ?target=<file|email|image|ocr>)");
 }
-if (in_array($target, array('file','email','image','ocr'))) {
+if (in_array($target, $SCAN_TARGETS, true)) {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //return immediately
                 $handle = popen('sudo -b -u \#'.$UID.' /opt/brother/scanner/brscan-skey/script/scanto'.$target.'.sh', 'r');
@@ -26,7 +26,7 @@ if (in_array($target, array('file','email','image','ocr'))) {
 }
 else
 {
-        header($_SERVER["SERVER_PROTOCOL"] . " 400 OK");
+        header($_SERVER["SERVER_PROTOCOL"] . " 400 Bad Request");
         die("Error: Thou shalt not inject unknown script names!");
 }
 

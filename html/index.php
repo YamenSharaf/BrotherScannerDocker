@@ -1,231 +1,555 @@
-<?php 
-include 'config.php'; 
-
-if (isset($RENAME_GUI_SCANTOFILE) && $RENAME_GUI_SCANTOFILE) {
-    $button_file = $RENAME_GUI_SCANTOFILE;
-} else {
-    $button_file = "Scan to file";
-}
-if (isset($RENAME_GUI_SCANTOEMAIL) && $RENAME_GUI_SCANTOEMAIL) {
-    $button_email = $RENAME_GUI_SCANTOEMAIL;
-} else {
-    $button_email = "Scan to email";
-}
-if (isset($RENAME_GUI_SCANTOIMAGE) && $RENAME_GUI_SCANTOIMAGE) {
-    $button_image = $RENAME_GUI_SCANTOIMAGE;
-} else {
-    $button_image = "Scan to image";
-}
-if (isset($RENAME_GUI_SCANTOOCR) && $RENAME_GUI_SCANTOOCR) {
-    $button_ocr = $RENAME_GUI_SCANTOOCR;
-} else {
-    $button_ocr = "Scan to OCR";
-}
-?>
+<?php include 'settings.php'; ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <title>Brother <?php echo($MODEL); ?></title>
-
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="favicon.ico">
-    <link rel="stylesheet" href="/assets/bootstrap.5.1.3/bootstrap.min.css ">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+    <title><?php echo htmlspecialchars($MODEL); ?> · Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/brother_logo.svg">
+    <!-- iOS home-screen icon: SVG is ignored by iOS; drop a 180x180 PNG at
+         /assets/brother_logo_180.png and it will be used automatically. -->
+    <link rel="apple-touch-icon" href="/assets/brother_logo_180.png">
     <link rel="stylesheet" href="/assets/fontawesome.5.15.4/css/all.min.css">
-    
     <style>
-        /* prevent persistent highlight after click to scan */
-        .trigger-scan:focus, .trigger-scan:active:focus {
-            box-shadow: none !important;
+        /* ---- Theme tokens (light is the base; dark overrides) ---- */
+        :root {
+            --bg: #eef0f4;
+            --bg-accent: #e2e6ee;
+            --surface: #ffffff;
+            --surface-2: #f4f5f8;
+            --border: #e2e5ec;
+            --text: #1b1e27;
+            --text-dim: #6b7280;
+            --primary: #2f6bff;
+            --primary-strong: #1f52d6;
+            --primary-contrast: #ffffff;
+            --primary-soft: rgba(47, 107, 255, .12);
+            --ok: #1aa06d;
+            --warn: #d9820a;
+            --busy: #2f6bff;
+            --ring: rgba(47, 107, 255, .18);
+            --shadow: 0 10px 30px rgba(20, 27, 45, .10), 0 2px 6px rgba(20, 27, 45, .06);
+            --shadow-sm: 0 1px 2px rgba(20, 27, 45, .08);
+        }
+
+        :root[data-theme="dark"],
+        html[data-theme="dark"] {
+            color-scheme: dark;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #0f1115;
+                --bg-accent: #151922;
+                --surface: #191d26;
+                --surface-2: #20252f;
+                --border: #2a303c;
+                --text: #e7eaf0;
+                --text-dim: #9aa2b1;
+                --primary: #5b8bff;
+                --primary-strong: #3f6fe6;
+                --primary-contrast: #0b0e14;
+                --primary-soft: rgba(91, 139, 255, .16);
+                --ok: #34c48b;
+                --warn: #eaa13a;
+                --busy: #5b8bff;
+                --ring: rgba(91, 139, 255, .22);
+                --shadow: 0 14px 40px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .35);
+                --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0f1115;
+            --bg-accent: #151922;
+            --surface: #191d26;
+            --surface-2: #20252f;
+            --border: #2a303c;
+            --text: #e7eaf0;
+            --text-dim: #9aa2b1;
+            --primary: #5b8bff;
+            --primary-strong: #3f6fe6;
+            --primary-contrast: #0b0e14;
+            --primary-soft: rgba(91, 139, 255, .16);
+            --ok: #34c48b;
+            --warn: #eaa13a;
+            --busy: #5b8bff;
+            --ring: rgba(91, 139, 255, .22);
+            --shadow: 0 14px 40px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .35);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body { height: 100%; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(120% 100% at 50% 0%, var(--bg-accent), var(--bg) 60%);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- Top bar ---- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+            padding: max(.9rem, env(safe-area-inset-top)) 1rem .9rem;
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            min-width: 0;
+        }
+
+        .brand .dot {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: var(--text-dim);
+            box-shadow: 0 0 0 4px var(--surface-2);
+            flex: none;
+            transition: background .3s;
+        }
+        .brand .dot.live { background: var(--ok); }
+
+        .brand .name {
+            font-weight: 650;
+            font-size: 1rem;
+            letter-spacing: .01em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .brand .sub { color: var(--text-dim); font-size: .78rem; margin-top: -1px; }
+
+        .iconbtn {
+            appearance: none;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            display: grid; place-items: center;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform .12s, background .2s, border-color .2s;
+            flex: none;
+        }
+        .iconbtn:active { transform: scale(.94); }
+
+        /* ---- Main ---- */
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: .5rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---- Status hero ---- */
+        .hero {
+            text-align: center;
+            padding: 1.6rem 1rem 1.2rem;
+        }
+        .halo {
+            --c: var(--text-dim);
+            width: 132px; height: 132px;
+            margin: 0 auto 1.2rem;
+            border-radius: 50%;
+            display: grid; place-items: center;
+            color: var(--c);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow), 0 0 0 0 var(--ring);
+            transition: color .3s, box-shadow .4s;
+            position: relative;
+        }
+        .halo::after {
+            content: "";
+            position: absolute; inset: -6px;
+            border-radius: 50%;
+            border: 2px solid var(--c);
+            opacity: .18;
+            transition: opacity .3s;
+        }
+        .halo i { font-size: 3.2rem; }
+        /* Idle state shows the Brother logo in the halo; active states show an
+           animated status icon. The ring/halo styling is shared. */
+        .halo-logo { display: none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .halo-icon { display: block; }
+        .state-idle .halo-logo { display: block; }
+        .state-idle .halo-icon { display: none; }
+        .state-scan .halo { --c: var(--busy); box-shadow: var(--shadow), 0 0 0 8px var(--ring); }
+        .state-ocr  .halo { --c: var(--busy); box-shadow: var(--shadow), 0 0 0 8px var(--ring); }
+        .state-waiting .halo { --c: var(--warn); }
+        .state-idle .halo { --c: var(--ok); }
+
+        .state-title { font-size: 1.35rem; font-weight: 700; margin: 0; }
+        .state-sub { color: var(--text-dim); font-size: .92rem; margin: .35rem 0 0; min-height: 1.2em; }
+
+        /* ---- Feature chips ---- */
+        .chips {
+            display: flex; flex-wrap: wrap; gap: .4rem;
+            justify-content: center;
+            margin: 1rem 0 .2rem;
+        }
+        .chip {
+            display: inline-flex; align-items: center; gap: .4rem;
+            font-size: .76rem; font-weight: 600;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            padding: .32rem .6rem;
+            border-radius: 999px;
+        }
+        .chip i { font-size: .72rem; color: var(--ok); }
+
+        /* ---- Action buttons ---- */
+        .actions {
+            display: flex; flex-direction: column; gap: .7rem;
+            margin-top: 1.4rem;
+        }
+        .btn {
+            appearance: none;
+            display: flex; align-items: center; gap: .85rem;
+            width: 100%;
+            text-align: left;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform .12s, box-shadow .2s, border-color .2s, background .2s, opacity .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn .b-ico {
+            width: 44px; height: 44px; flex: none;
+            border-radius: 12px;
+            display: grid; place-items: center;
+            background: var(--surface-2);
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            transition: background .2s, color .2s;
+        }
+        .btn .b-text { min-width: 0; }
+        .btn .b-label { font-weight: 650; display: block; }
+        .btn .b-hint { color: var(--text-dim); font-size: .8rem; margin-top: .1rem; }
+        .btn .b-go { margin-left: auto; color: var(--text-dim); flex: none; opacity: .6; }
+        .btn:active { transform: scale(.985); }
+        .btn:hover { border-color: var(--primary); }
+
+        .btn.primary {
+            background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+            border-color: transparent;
+            color: var(--primary-contrast);
+            box-shadow: var(--shadow);
+        }
+        .btn.primary .b-ico { background: rgba(255, 255, 255, .18); color: var(--primary-contrast); }
+        .btn.primary .b-hint,
+        .btn.primary .b-go { color: rgba(255, 255, 255, .8); opacity: 1; }
+        .btn.primary:hover { border-color: transparent; }
+
+        /* Highlight the rear button while waiting for backs */
+        .state-waiting .btn.rear {
+            border-color: var(--warn);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
+        }
+        @supports not (color: color-mix(in srgb, red, blue)) {
+            .state-waiting .btn.rear { box-shadow: var(--shadow); }
+        }
+
+        .btn.busy {
+            opacity: .55;
+            pointer-events: none;
+        }
+
+        /* ---- Recent scans sheet ---- */
+        .scrim {
+            position: fixed; inset: 0;
+            background: rgba(8, 10, 16, .5);
+            opacity: 0; pointer-events: none;
+            transition: opacity .25s;
+            z-index: 40;
+        }
+        .scrim.open { opacity: 1; pointer-events: auto; }
+
+        .sheet {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            z-index: 50;
+            background: var(--surface);
+            border-top-left-radius: 22px;
+            border-top-right-radius: 22px;
+            box-shadow: 0 -12px 40px rgba(0, 0, 0, .3);
+            transform: translateY(100%);
+            transition: transform .3s cubic-bezier(.22, .61, .36, 1);
+            max-height: 82dvh;
+            display: flex; flex-direction: column;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .sheet.open { transform: translateY(0); }
+        .sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: .7rem auto .2rem; }
+        .sheet-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .3rem 1.1rem .6rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .sheet-head h2 { font-size: 1.05rem; margin: 0; }
+        .sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: .4rem 0 1rem; }
+
+        .empty { text-align: center; color: var(--text-dim); padding: 2.5rem 1rem; }
+
+        /* File list rows (list.php markup) */
+        .file-row {
+            display: flex; align-items: center; gap: .8rem;
+            padding: .8rem 1.1rem;
+            color: inherit; text-decoration: none;
+            border-bottom: 1px solid var(--border);
+            transition: background .15s;
+        }
+        .file-row:active { background: var(--surface-2); }
+        .file-row .f-ico { color: var(--primary); font-size: 1.3rem; flex: none; }
+        .file-row .f-main { min-width: 0; flex: 1; }
+        .file-row .f-name { font-weight: 600; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-row .f-meta { color: var(--text-dim); font-size: .78rem; margin-top: .1rem; }
+        .file-row .f-dl { color: var(--text-dim); flex: none; }
+
+        .toast {
+            position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom));
+            transform: translate(-50%, 1.5rem);
+            background: var(--text); color: var(--bg);
+            padding: .7rem 1.1rem; border-radius: 999px;
+            font-size: .85rem; font-weight: 600;
+            box-shadow: var(--shadow);
+            opacity: 0; pointer-events: none;
+            transition: opacity .25s, transform .25s;
+            z-index: 60; max-width: 90vw;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
         }
     </style>
 </head>
 
-<body>
+<body class="state-idle">
 
-    <nav class="navbar navbar-expand-sm fixed-top  navbar-dark bg-dark">
-        <div class="container pe-0">
-            <a class="navbar-brand" href="/"><?php echo($MODEL); ?></a>
-            <a class="nav-link text-white me-0" id="triggerFiles" href="#"><i
-                    class="far fa-file-pdf  fa-fw fa-2x"></i></a>
-
-        </div>
-    </nav>
-    <section class="pt-5 pb-5 mt-0 align-items-center d-flex bg-dark" style="min-height: 100vh; ">
-        <div class="container">
-            <div class="row  justify-content-center align-items-center d-flex-row text-center h-100">
-                <div class="col-12 col-md-8  h-50 ">
-                    <span id="status-image" class="d-block mx-auto rounded-circle img-fluid text-white"> <i
-                            class="far fa-smile fa-fw fa-10x"></i></span>
-                    <h1 class="   text-light mb-2 mt-5"><strong><?php echo($MODEL); ?></strong> </h1>
-                    <p class="lead  text-light mb-5" id="status-text">Ready to scan</p>
-
-                    <?php 
-                if (!isset($DISABLE_GUI_SCANTOFILE) || $DISABLE_GUI_SCANTOFILE != true) {
-                    echo('<p><a href="#" class="btn btn-outline-light btn-lg d-block trigger-scan" data-trigger="file">'.$button_file.'</a></p>');
-                }
-                if (!isset($DISABLE_GUI_SCANTOEMAIL) || $DISABLE_GUI_SCANTOEMAIL != true) {
-                    echo('<p><a href="#" class="btn btn-outline-light btn-lg d-block trigger-scan" data-trigger="email">'.$button_email.'</a></p>');
-                }
-                if (!isset($DISABLE_GUI_SCANTOIMAGE) || $DISABLE_GUI_SCANTOIMAGE != true) {
-                    echo('<p><a href="#" class="btn btn-outline-light btn-lg d-block trigger-scan" data-trigger="image">'.$button_image.'</a></p>');
-                }
-                if (!isset($DISABLE_GUI_SCANTOOCR) || $DISABLE_GUI_SCANTOOCR != true) {
-                    echo('<p><a href="#" class="btn btn-outline-light btn-lg d-block trigger-scan" data-trigger="ocr">'.$button_ocr.'</a></p>');
-                }
-            ?>
-                </div>
+    <header class="topbar">
+        <div class="brand">
+            <span class="dot" id="liveDot" title="connection"></span>
+            <div style="min-width:0">
+                <div class="name"><?php echo htmlspecialchars($MODEL); ?></div>
+                <div class="sub">Network scanner</div>
             </div>
         </div>
-    </section>
-
-
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasFiles" aria-labelledby="offcanvasFilesLabel">
-	
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasFilesLabel">Last scanned</h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        <div style="display:flex; gap:.5rem">
+            <button class="iconbtn" id="btnFiles" title="Recent scans" aria-label="Recent scans">
+                <i class="far fa-folder-open"></i>
+            </button>
+            <button class="iconbtn" id="btnTheme" title="Theme" aria-label="Toggle theme">
+                <i class="fas fa-adjust"></i>
+            </button>
         </div>
-        <div class="offcanvas-body m-0 p-0" id="offcanvasContent">
+    </header>
 
+    <main>
+        <section class="hero">
+            <div class="halo" id="halo">
+                <img src="/assets/brother_logo.svg" alt="" class="halo-logo">
+                <i class="halo-icon far fa-smile" id="haloIcon"></i>
+            </div>
+            <h1 class="state-title" id="stateTitle">Ready to scan</h1>
+            <p class="state-sub" id="stateSub">Pick an action below</p>
+        </section>
 
+        <?php
+        $activeFeatures = array();
+        if ($FEATURES['ocr'])           { $activeFeatures[] = array('fa-brain', 'OCR'); }
+        if ($FEATURES['blank_removal']) { $activeFeatures[] = array('fa-eraser', 'Blank-page removal'); }
+        if ($FEATURES['ftp'])           { $activeFeatures[] = array('fa-upload', 'FTP upload'); }
+        if ($FEATURES['telegram'])      { $activeFeatures[] = array('fa-paper-plane', 'Telegram'); }
+        if ($FEATURES['jpeg'])          { $activeFeatures[] = array('fa-file-image', 'JPEG compression'); }
+        $activeFeatures[] = array('fa-tachometer-alt', $RESOLUTION . ' dpi');
+        ?>
+        <div class="chips">
+            <?php foreach ($activeFeatures as $f) { ?>
+                <span class="chip"><i class="fas <?php echo $f[0]; ?>"></i><?php echo htmlspecialchars($f[1]); ?></span>
+            <?php } ?>
+        </div>
 
+        <div class="actions">
+            <?php foreach ($BUTTONS as $key => $b) {
+                if (!$b['enabled']) { continue; }
+                $cls = 'btn';
+                if ($b['primary']) { $cls .= ' primary'; }
+                if ($key === 'email') { $cls .= ' rear'; }
+            ?>
+                <button class="<?php echo $cls; ?> trigger-scan" data-trigger="<?php echo $key; ?>">
+                    <span class="b-ico"><i class="<?php echo $b['icon']; ?>"></i></span>
+                    <span class="b-text">
+                        <span class="b-label"><?php echo htmlspecialchars($b['label']); ?></span>
+                        <?php if (!empty($b['hint'])) { ?>
+                            <span class="b-hint"><?php echo htmlspecialchars($b['hint']); ?></span>
+                        <?php } ?>
+                    </span>
+                    <i class="fas fa-chevron-right b-go"></i>
+                </button>
+            <?php } ?>
+        </div>
+    </main>
 
-
+    <!-- Recent scans bottom sheet -->
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Recent scans">
+        <div class="sheet-grip"></div>
+        <div class="sheet-head">
+            <h2>Recent scans</h2>
+            <button class="iconbtn" id="btnClose" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="sheet-body" id="sheetBody">
+            <div class="empty">Loading…</div>
         </div>
     </div>
 
-    <script src="/assets/jquery.3.7.1/jquery.min.js"></script>
-    <script src="/assets/bootstrap.5.1.3/bootstrap.bundle.min.js"></script>
-
+    <div class="toast" id="toast"></div>
 
     <script>
-        function set_state_idle() {
-            $('#status-image').html('<i class="far fa-smile fa-fw fa-10x"></i>');
-            $('#status-text').text('Ready to scan');
-            $('.trigger-scan').removeClass('disabled');
-        }
+        (function () {
+            "use strict";
 
-        function set_state_waiting() {
-            $('#status-image').html('<i class="fas fa-hourglass-half fa-fw fa-10x"></i>');
-            $('#status-text').text('Waiting for rear pages');
-            $('.trigger-scan').removeClass('disabled');
-        }
+            /* ---------- Theme: auto (default) / light / dark ---------- */
+            var order = ["auto", "light", "dark"];
+            var icons = { auto: "fa-adjust", light: "fa-sun", dark: "fa-moon" };
+            var root = document.documentElement;
+            var themeIcon = document.querySelector("#btnTheme i");
 
-        function set_state_scan() {
-            let spinnerimage = '<i class="fas fa-spinner fa-spin fa-fw fa-10x"></i>';
-            if (spinnerimage != $('#status-image').html()) {
-                $('#status-image').html(spinnerimage);
+            function applyTheme(mode) {
+                if (mode === "auto") root.removeAttribute("data-theme");
+                else root.setAttribute("data-theme", mode);
+                themeIcon.className = "fas " + icons[mode];
             }
-            $('#status-text').text('Scan in progress');
-            $('.trigger-scan').addClass('disabled');
-        }
+            var saved = localStorage.getItem("scanner-theme") || "auto";
+            applyTheme(saved);
+            document.getElementById("btnTheme").addEventListener("click", function () {
+                saved = order[(order.indexOf(saved) + 1) % order.length];
+                localStorage.setItem("scanner-theme", saved);
+                applyTheme(saved);
+                toast("Theme: " + saved);
+            });
 
-        function set_state_ocr() {
-            $('#status-image').html('<i class="fas fa-brain fa-fw fa-10x"></i>');
-            $('#status-text').text('OCR in progress');
-            $('.trigger-scan').removeClass('disabled');
-        }
-
-        function set_state(state) {
-            switch (state) {
-                case 'idle':
-                    set_state_idle();
-                    break;
-                case 'waiting':
-                    set_state_waiting();
-                    break;
-                case 'scan':
-                    set_state_scan();
-                    break;
-                case 'ocr':
-                    set_state_ocr();
-                    break;
-                default:
-                    set_state_idle();
+            /* ---------- Toast ---------- */
+            var toastEl = document.getElementById("toast");
+            var toastTimer;
+            function toast(msg) {
+                toastEl.textContent = msg;
+                toastEl.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
             }
-        }
 
-        $(document).ready(function() {
+            /* ---------- Status polling ---------- */
+            var STATES = {
+                idle:    { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",       sub: "Pick an action below" },
+                scan:    { cls: "state-scan",    icon: "fas fa-spinner fa-spin", title: "Scanning…",      sub: "Feeding pages through the scanner" },
+                waiting: { cls: "state-waiting", icon: "fas fa-hourglass-half",  title: "Waiting for rear pages", sub: "Add the backs, or wait to finalize the document" },
+                ocr:     { cls: "state-ocr",     icon: "fas fa-brain",           title: "Running OCR…",   sub: "Recognizing text on the server" }
+            };
+            var haloIcon = document.getElementById("haloIcon");
+            var stateTitle = document.getElementById("stateTitle");
+            var stateSub = document.getElementById("stateSub");
+            var liveDot = document.getElementById("liveDot");
+            var current = "idle";
 
+            function setState(name) {
+                var s = STATES[name] || STATES.idle;
+                if (name !== current) {
+                    current = name;
+                    document.body.className = s.cls;
+                    haloIcon.className = "halo-icon " + s.icon;
+                    stateTitle.textContent = s.title;
+                    stateSub.textContent = s.sub;
+                }
+                // While scanning, lock the buttons; otherwise they are live.
+                document.querySelectorAll(".trigger-scan").forEach(function (b) {
+                    b.classList.toggle("busy", name === "scan");
+                });
+            }
 
-            $('.trigger-scan').click(function() {
-                var target = $(this).data('trigger');
-                $.post('/scan.php', {
-                    target: target
-                }, function(data) {
-                    console.log(data);
-                    $('.trigger-scan').blur();
+            function poll() {
+                fetch("/active.php", { cache: "no-store" })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        liveDot.classList.add("live");
+                        var state = "idle";
+                        if (d.scan) state = "scan";
+                        else if (d.ocr) state = "ocr";
+                        else if (d.waiting) state = "waiting";
+                        setState(state);
+                    })
+                    .catch(function () { liveDot.classList.remove("live"); });
+            }
+            poll();
+            setInterval(poll, 1200);
+
+            /* ---------- Trigger a scan ---------- */
+            document.querySelectorAll(".trigger-scan").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    if (btn.classList.contains("busy")) return;
+                    var target = btn.getAttribute("data-trigger");
+                    var label = btn.querySelector(".b-label").textContent;
+                    var body = new URLSearchParams({ target: target });
+                    fetch("/scan.php", { method: "POST", body: body })
+                        .then(function () { toast(label + " started"); })
+                        .catch(function () { toast("Could not reach scanner"); });
+                    setState("scan");
                 });
             });
 
+            /* ---------- Recent scans sheet ---------- */
+            var scrim = document.getElementById("scrim");
+            var sheet = document.getElementById("sheet");
+            var sheetBody = document.getElementById("sheetBody");
 
-            setInterval(function() {
-                $.get('/active.php', function(data) {
-
-
-                    let state = 'idle';
-                    
-
-                    if (data.ocr && data.waiting && !data.scan) {
-                        state = 'ocr';
-                    } else if (data.scan && data.waiting) {
-                        state = 'scan';
-                    } else if (data.scan) {
-                        state = 'scan';
-                    } else if (data.ocr && !data.scan) {
-                        state = 'ocr';
-                    } else if (!data.ocr && !data.scan && data.waiting) {
-                        state = 'waiting';
-                    } else if (!data.ocr && !data.scan && !data.waiting) {
-                        state = 'idle';
-                    }
-                    set_state(state);
-                });
-            }, 1000);
-
-
-            /**
-             * Event handler for the click event on the element with ID 'triggerFiles'.
-             * Prevents the default action and performs an AJAX GET request to '/list.php'.
-             * 
-             * On successful response:
-             * - Populates the Offcanvas element with ID 'offcanvasContent' with the response content.
-             * - Displays the Offcanvas element with ID 'offcanvasFiles'.
-             * 
-             * On error:
-             * - Logs an error message to the console.
-             * 
-             * @param {Event} e - The click event object.
-             */
-            $('#triggerFiles').on('click', function(e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/list.php',
-                    method: 'GET',
-                    success: function(response) {
-                        // Populate the Offcanvas with the response content
-                        $('#offcanvasContent').html(response);
-
-                        // Show the Offcanvas
-                        var offcanvas = new bootstrap.Offcanvas($('#offcanvasFiles')[0]);
-                        offcanvas.show();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Failed to load content:', error);
-                    }
-                });
-            });
-
-
-        });
+            function openSheet() {
+                scrim.classList.add("open");
+                sheet.classList.add("open");
+                sheetBody.innerHTML = '<div class="empty">Loading…</div>';
+                fetch("/list.php", { cache: "no-store" })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        sheetBody.innerHTML = html.trim() ? html : '<div class="empty">No scans yet</div>';
+                    })
+                    .catch(function () { sheetBody.innerHTML = '<div class="empty">Could not load files</div>'; });
+            }
+            function closeSheet() {
+                scrim.classList.remove("open");
+                sheet.classList.remove("open");
+            }
+            document.getElementById("btnFiles").addEventListener("click", openSheet);
+            document.getElementById("btnClose").addEventListener("click", closeSheet);
+            scrim.addEventListener("click", closeSheet);
+        })();
     </script>
-
-
 </body>
 
 </html>
