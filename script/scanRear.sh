@@ -105,7 +105,7 @@ fi
     $script_dir/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
 
     set_state delivering
-    php /var/www/html/lib/deliver.php "$output_pdf_file" || true
+    php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
 
     echo "cleaning up for $date..."
     cd /scans || exit

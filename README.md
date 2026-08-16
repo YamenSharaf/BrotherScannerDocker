@@ -222,6 +222,8 @@ Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected
 - **SMTP** — outgoing mail server (host, port, security, credentials, from address) used to email scans.
 - **Address Book** — people who receive a **copy of the scanned PDF**. Each recipient can be reached on email (attachment), Telegram (document — uses the bot token from the Notifications tab + a per-recipient chat id), and/or Discord (file to a channel webhook, with an optional `@mention`). Mark a recipient *"Every scan"* to deliver every completed document to them automatically.
 
+Recipients **not** marked "Every scan" instead appear as a **"Send a copy to"** picker on the scan screen, so a walk-up user can send an individual scan to them on demand (in addition to the default recipients). The picker only shows names + channel icons, never the addresses.
+
 Notifications (alerts) and Address Book (file delivery) are separate: an alert tells you a scan happened; delivery sends the actual file. Files larger than a channel's limit (~8 MB Discord, ~50 MB Telegram, ~20 MB email) are skipped for that channel with a logged warning — the copy in `/scans` is unaffected. Delivery and notifications never block saving to storage.
 
 Every service has a **Send test** button that uses the values currently in the form, so you can verify a channel *before* saving.

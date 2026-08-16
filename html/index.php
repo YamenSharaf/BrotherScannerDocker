@@ -1,4 +1,31 @@
-<?php include 'settings.php'; ?>
+<?php
+include 'settings.php';
+require_once __DIR__ . '/lib/config.php';
+
+// Recipients the user can add for THIS scan (in addition to the "Every scan"
+// defaults): Active, not-default, and with at least one delivery channel on.
+// Only names + channel icons are exposed here — never the actual addresses,
+// since the scan GUI is unauthenticated.
+$pickable = array();
+foreach (config_contacts() as $c) {
+    if (empty($c['enabled']) || !empty($c['default'])) {
+        continue;
+    }
+    $cch = isset($c['channels']) && is_array($c['channels']) ? $c['channels'] : array();
+    $chans = array();
+    if (!empty($cch['email']['on']))    { $chans[] = 'fas fa-envelope'; }
+    if (!empty($cch['telegram']['on'])) { $chans[] = 'fab fa-telegram-plane'; }
+    if (!empty($cch['discord']['on']))  { $chans[] = 'fab fa-discord'; }
+    if (empty($chans)) {
+        continue;
+    }
+    $pickable[] = array(
+        'id'    => $c['id'] ?? '',
+        'name'  => trim($c['name'] ?? '') !== '' ? trim($c['name']) : 'Recipient',
+        'chans' => $chans,
+    );
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -256,6 +283,23 @@
             box-shadow: var(--shadow);
         }
 
+        /* ---- Per-scan recipient picker ---- */
+        .recipients { margin-top: 1.3rem; }
+        .recip-opts { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+        .recip {
+            display: inline-flex; align-items: center; gap: .45rem;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+            border-radius: 999px; padding: .42rem .8rem; font-size: .85rem; font-weight: 600;
+            cursor: pointer; box-shadow: var(--shadow-sm);
+            transition: transform .12s, background .2s, border-color .2s, color .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .recip:active { transform: scale(.96); }
+        .recip input { display: none; }
+        .recip .recip-chans { display: inline-flex; gap: .25rem; opacity: .65; font-size: .72rem; }
+        .recip.checked { background: var(--primary); border-color: transparent; color: var(--primary-contrast); box-shadow: var(--shadow); }
+        .recip.checked .recip-chans { opacity: .9; }
+
         /* ---- Action buttons ---- */
         .actions {
             display: flex; flex-direction: column; gap: .7rem;
@@ -453,6 +497,21 @@
             </div>
         </div>
 
+        <?php if (!empty($pickable)) { ?>
+        <div class="reso recipients">
+            <div class="reso-head"><i class="fas fa-paper-plane"></i> Send a copy to</div>
+            <div class="recip-opts" id="recipOpts">
+                <?php foreach ($pickable as $r) { ?>
+                    <label class="recip">
+                        <input type="checkbox" value="<?php echo htmlspecialchars($r['id']); ?>">
+                        <span class="recip-name"><?php echo htmlspecialchars($r['name']); ?></span>
+                        <span class="recip-chans"><?php foreach ($r['chans'] as $ic) { ?><i class="<?php echo $ic; ?>"></i><?php } ?></span>
+                    </label>
+                <?php } ?>
+            </div>
+        </div>
+        <?php } ?>
+
         <div class="actions">
             <?php foreach ($BUTTONS as $key => $b) {
                 if (!$b['enabled']) { continue; }
@@ -546,6 +605,19 @@
                 });
             }
 
+            /* ---------- Per-scan recipient picker ---------- */
+            document.querySelectorAll("#recipOpts input").forEach(function (cb) {
+                cb.addEventListener("change", function () {
+                    cb.closest(".recip").classList.toggle("checked", cb.checked);
+                });
+            });
+            function selectedRecipients() {
+                return Array.prototype.slice
+                    .call(document.querySelectorAll("#recipOpts input:checked"))
+                    .map(function (cb) { return cb.value; })
+                    .join(",");
+            }
+
             /* ---------- Status polling ---------- */
             var STATES = {
                 idle:           { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",          sub: "Pick an action below" },
@@ -598,7 +670,7 @@
                     if (btn.classList.contains("busy")) return;
                     var target = btn.getAttribute("data-trigger");
                     var label = btn.querySelector(".b-label").textContent;
-                    var body = new URLSearchParams({ target: target, resolution: selectedReso });
+                    var body = new URLSearchParams({ target: target, resolution: selectedReso, recipients: selectedRecipients() });
                     fetch("/scan.php", { method: "POST", body: body })
                         .then(function () { toast(label + " started"); })
                         .catch(function () { toast("Could not reach scanner"); });

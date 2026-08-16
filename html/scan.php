@@ -26,6 +26,14 @@ if ($resolution !== '' && in_array((string) $resolution, $RESOLUTIONS, true)) {
         putenv('GUI_RESOLUTION=' . $resolution);
 }
 
+// Optional per-scan recipients (address-book ids from the GUI picker), delivered
+// in addition to the "Every scan" defaults. Sanitised to hex+comma; deliver.php
+// only sends to ids matching an enabled contact, so unknown ids are harmless.
+$recipients = preg_replace('/[^a-f0-9,]/', '', (string) ($_POST['recipients'] ?? $_GET['recipients'] ?? ''));
+if ($recipients !== '') {
+        putenv('GUI_RECIPIENTS=' . $recipients);
+}
+
 if (in_array($target, $SCAN_TARGETS, true)) {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //return immediately

@@ -75,7 +75,7 @@
       ${script_dir}/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
       php /var/www/html/lib/notify.php "${date}.pdf (front) scanned" || true
       set_state delivering
-      php /var/www/html/lib/deliver.php "$output_pdf_file" || true
+      php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
       set_state processing
 	  ${script_dir}/sendtoftps.sh \
             "${FTP_USER}" \
