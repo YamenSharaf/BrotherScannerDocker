@@ -1,30 +1,42 @@
 <?php
+// Reports the current scanner phase to the GUI. The scan scripts write a small
+// state file at each phase (scanning_front -> waiting -> scanning_rear ->
+// processing -> ocr -> done); we just read it here.
+//
+// This replaces the old "guess from process names" approach, which was wrong in
+// two ways: killing the front-scan subshell orphans its `sleep`, so `pgrep
+// sleep` stayed true and the UI was stuck on "waiting"; and the conversion
+// phase (gm/gs/pdftk) matched none of scanimage/sleep/curl, so there was no
+// "processing" state and no clear completion.
 
-function isProcessRunning($processName) {
-        // Execute the pgrep command
-        $command = "pgrep $processName";
-        exec($command, $output, $status);
-    
-        // Check if pgrep returned a status of 0, which means the process was found
-        if ($status === 0) {
-            // Process is running
-            return true;
+$statefile = '/tmp/scanner.state';
+$state = 'idle';
+
+if (is_readable($statefile)) {
+    $s = trim((string) @file_get_contents($statefile));
+    $age = time() - (int) @filemtime($statefile);
+    if ($s !== '') {
+        if ($s === 'done') {
+            // Brief "done" confirmation, then fall back to idle.
+            $state = ($age <= 8) ? 'done' : 'idle';
+        } elseif ($age > 1200) {
+            // Safety net: a job that never wrote a terminal state (e.g. crashed)
+            // shouldn't leave the UI stuck. After 20 min, treat as idle.
+            $state = 'idle';
         } else {
-            // Process is not running
-            return false;
+            $state = $s;
         }
     }
-    
-// Check if the scanimage, sleep, and curl processes are running
+}
+
+// `state` is authoritative; the booleans are kept for backwards compatibility
+// with any external API consumers of this endpoint.
 $result = array(
-        'scan' => isProcessRunning('scanimage'),
-        'waiting' => isProcessRunning('sleep'),
-        'ocr' => isProcessRunning('curl')
+    'state'   => $state,
+    'scan'    => ($state === 'scanning_front' || $state === 'scanning_rear'),
+    'waiting' => ($state === 'waiting'),
+    'ocr'     => ($state === 'ocr'),
 );
 
-
-// Output the result as JSON
 header('Content-Type: application/json; charset=utf-8');
 echo json_encode($result);
-
-?>

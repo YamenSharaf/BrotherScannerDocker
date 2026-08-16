@@ -199,6 +199,7 @@
         .state-scan .halo { --c: var(--busy); box-shadow: var(--shadow), 0 0 0 8px var(--ring); }
         .state-ocr  .halo { --c: var(--busy); box-shadow: var(--shadow), 0 0 0 8px var(--ring); }
         .state-waiting .halo { --c: var(--warn); }
+        .state-done .halo { --c: var(--ok); box-shadow: var(--shadow), 0 0 0 8px var(--ring); }
         .state-idle .halo { --c: var(--ok); }
 
         .state-title { font-size: 1.35rem; font-weight: 700; margin: 0; }
@@ -292,25 +293,33 @@
         .btn:active { transform: scale(.985); }
         .btn:hover { border-color: var(--primary); }
 
-        .btn.primary {
+        /* Primary (blue) treatment — the front button by default, and the rear
+           button while waiting for backs (see below). */
+        .btn.primary,
+        .state-waiting .btn.rear {
             background: linear-gradient(180deg, var(--primary), var(--primary-strong));
             border-color: transparent;
             color: var(--primary-contrast);
             box-shadow: var(--shadow);
         }
-        .btn.primary .b-ico { background: rgba(255, 255, 255, .18); color: var(--primary-contrast); }
-        .btn.primary .b-hint,
-        .btn.primary .b-go { color: rgba(255, 255, 255, .8); opacity: 1; }
-        .btn.primary:hover { border-color: transparent; }
+        .btn.primary .b-ico,
+        .state-waiting .btn.rear .b-ico { background: rgba(255, 255, 255, .18); color: var(--primary-contrast); }
+        .btn.primary .b-hint, .btn.primary .b-go,
+        .state-waiting .btn.rear .b-hint, .state-waiting .btn.rear .b-go { color: rgba(255, 255, 255, .8); opacity: 1; }
+        .btn.primary:hover,
+        .state-waiting .btn.rear:hover { border-color: transparent; }
 
-        /* Highlight the rear button while waiting for backs */
-        .state-waiting .btn.rear {
-            border-color: var(--warn);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
+        /* While waiting for rear pages, the rear button becomes the primary
+           action, so the front button steps back to the neutral style. */
+        .state-waiting .btn.primary {
+            background: var(--surface);
+            border-color: var(--border);
+            color: var(--text);
+            box-shadow: var(--shadow-sm);
         }
-        @supports not (color: color-mix(in srgb, red, blue)) {
-            .state-waiting .btn.rear { box-shadow: var(--shadow); }
-        }
+        .state-waiting .btn.primary .b-ico { background: var(--surface-2); color: var(--text-dim); }
+        .state-waiting .btn.primary .b-hint { color: var(--text-dim); opacity: 1; }
+        .state-waiting .btn.primary .b-go { color: var(--text-dim); opacity: .6; }
 
         .btn.busy {
             opacity: .55;
@@ -534,11 +543,15 @@
 
             /* ---------- Status polling ---------- */
             var STATES = {
-                idle:    { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",       sub: "Pick an action below" },
-                scan:    { cls: "state-scan",    icon: "fas fa-spinner fa-spin", title: "Scanning…",      sub: "Feeding pages through the scanner" },
-                waiting: { cls: "state-waiting", icon: "fas fa-hourglass-half",  title: "Waiting for rear pages", sub: "Add the backs, or wait to finalize the document" },
-                ocr:     { cls: "state-ocr",     icon: "fas fa-brain",           title: "Running OCR…",   sub: "Recognizing text on the server" }
+                idle:           { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",          sub: "Pick an action below" },
+                scanning_front: { cls: "state-scan",    icon: "fas fa-spinner fa-spin", title: "Scanning front pages…",  sub: "Feeding pages through the scanner" },
+                waiting:        { cls: "state-waiting", icon: "fas fa-hourglass-half",  title: "Waiting for rear pages", sub: "Add the backs, or wait to finalize the document" },
+                scanning_rear:  { cls: "state-scan",    icon: "fas fa-spinner fa-spin", title: "Scanning rear pages…",   sub: "Feeding pages through the scanner" },
+                processing:     { cls: "state-ocr",     icon: "fas fa-cog fa-spin",     title: "Processing…",            sub: "Assembling and cleaning up the PDF" },
+                ocr:            { cls: "state-ocr",     icon: "fas fa-brain",           title: "Running OCR…",           sub: "Recognizing text on the server" },
+                done:           { cls: "state-done",    icon: "fas fa-check-circle",    title: "Saved",                  sub: "Your document is ready" }
             };
+            var BUSY_STATES = { scanning_front: 1, scanning_rear: 1, processing: 1 };
             var haloIcon = document.getElementById("haloIcon");
             var stateTitle = document.getElementById("stateTitle");
             var stateSub = document.getElementById("stateSub");
@@ -554,9 +567,10 @@
                     stateTitle.textContent = s.title;
                     stateSub.textContent = s.sub;
                 }
-                // While scanning, lock the buttons; otherwise they are live.
+                // Lock the buttons while actively scanning or processing;
+                // otherwise (waiting / ocr / done / idle) they stay live.
                 document.querySelectorAll(".trigger-scan").forEach(function (b) {
-                    b.classList.toggle("busy", name === "scan");
+                    b.classList.toggle("busy", !!BUSY_STATES[name]);
                 });
             }
 
@@ -565,11 +579,7 @@
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
                         liveDot.classList.add("live");
-                        var state = "idle";
-                        if (d.scan) state = "scan";
-                        else if (d.ocr) state = "ocr";
-                        else if (d.waiting) state = "waiting";
-                        setState(state);
+                        setState(d.state || "idle");
                     })
                     .catch(function () { liveDot.classList.remove("live"); });
             }
@@ -586,7 +596,7 @@
                     fetch("/scan.php", { method: "POST", body: body })
                         .then(function () { toast(label + " started"); })
                         .catch(function () { toast("Could not reach scanner"); });
-                    setState("scan");
+                    setState(target === "email" ? "scanning_rear" : "scanning_front");
                 });
             });
 

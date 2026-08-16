@@ -5,6 +5,11 @@
 #override environment, as brscan is screwing it up:
 export $(grep -v '^#' /opt/brother/scanner/env.txt | xargs)
 
+# Report progress to the web UI via a small state file that active.php reads.
+statefile="/tmp/scanner.state"
+set_state() { { echo "$1" >"$statefile"; chmod 666 "$statefile"; } 2>/dev/null || true; }
+set_state scanning_rear
+
 # GUI_RESOLUTION is an optional per-scan override from the web UI (passed via
 # sudo env_keep); falls back to the RESOLUTION env default, then 300.
 resolution="${GUI_RESOLUTION:-${RESOLUTION:-300}}"
@@ -83,6 +88,7 @@ fi
 
   (
     echo "converting to PDF for $date..."
+    set_state processing
     gm convert ${gm_opts[@]} ./*.pnm "$tmp_output_pdf_file"
     ${script_dir}/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
     ${script_dir}/trigger_telegram.sh "${date}.pdf (rear) scanned"
@@ -104,9 +110,11 @@ fi
 
     if [ -z "${OCR_SERVER}" ] || [ -z "${OCR_PORT}" ] || [ -z "${OCR_PATH}" ]; then
       echo "OCR environment variables not set, skipping OCR."
+      set_state done
     else
       echo "starting OCR for $date..."
       (
+        set_state ocr
         curl -F "userfile=@${output_pdf_file}" -H "Expect:" -o "/scans/${date}-ocr.pdf" "${OCR_SERVER}":"${OCR_PORT}"/"${OCR_PATH}"
         ${script_dir}/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${date}-ocr.pdf"
         ${script_dir}/trigger_telegram.sh "${date}-ocr.pdf (rear) OCR finished"
@@ -122,6 +130,7 @@ fi
 				rm ${output_pdf_file}
 			fi
           fi
+      set_state done
       ) &
     fi
   ) &
