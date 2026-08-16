@@ -1,3 +1,7 @@
 docker-compose.yml
 .vscode
 !.vscode/launch.json
+
+# Generated / runtime artifacts (created when running via docker-compose mounts)
+html/config.php
+/scans/

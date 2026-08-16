@@ -76,8 +76,14 @@ The startup scripts automatically tries to guess the host interface and adjust t
 ### Further Notes
 
 Note that the mounted folder /scans needs to have the correct permissions.
-By default, the scanner will run with user uid 1000 and gid 1000.
-You may change this through setting the environment variables UID and GID.
+By default, the scanner runs as (and scans are owned by) uid 1000 / gid 1000.
+You may change this with the environment variables `PUID` and `PGID` (the legacy
+names `UID`/`GID` also work). For example `PUID=0`/`PGID=0` runs scans as root.
+
+Do **not** set `NAME=root`. `NAME` is just a label for the scanner; setting it to
+an existing account name (like `root`) is not needed to run scans as that user —
+use `PUID`/`PGID` for that. If you want root-owned scans, keep a normal `NAME`
+(e.g. `Scanner`) and set `PUID=0`/`PGID=0`.
 
 Note that only "Scan to File" and "Scan to Email" are currently implemented.
 The earlier is configured to scan the front page(s) of documents and wait up to two minutes before converting to PDF.

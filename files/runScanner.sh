@@ -6,29 +6,43 @@ if [[ $NAME == *" "* ]]; then
   exit -1
 fi
 
-if [[ -z {$NAME} ]]; then
-  $NAME="Scanner"
+if [[ -z "${NAME}" ]]; then
+  NAME="Scanner"
 fi
 
-# if running as root, create default user. If UID is set, use that
-if [[ ${UID} == 0 ]]; then
-  USERID=1000
-else
-  USERID=$UID
-fi
-if [[ -z ${GID} ]]; then
-  GROUPID=1000
-else
-  GROUPID=$GID
-fi
+# Resolve the uid/gid that scans run as and are owned by.
+# NOTE: bash's $UID is a readonly builtin equal to the CONTAINER's uid, so it
+# does NOT reflect a `-e UID=...` value. Read the real environment via printenv.
+# Prefer the unambiguous PUID/PGID; fall back to legacy UID/GID; default 1000.
+REQ_UID="$(printenv PUID || printenv UID || echo 1000)"
+REQ_GID="$(printenv PGID || printenv GID || echo 1000)"
+[[ -z "$REQ_UID" ]] && REQ_UID=1000
+[[ -z "$REQ_GID" ]] && REQ_GID=1000
 
-groupadd --gid "$GROUPID" NAS
-adduser "$NAME" --uid $USERID --gid "$GROUPID" --disabled-password --force-badname --gecos ""
+# Ensure a group with the requested gid exists (fine if it already does, e.g. gid 0).
+getent group "$REQ_GID" >/dev/null || groupadd --gid "$REQ_GID" "$NAME" 2>/dev/null || true
+
+# Determine the user scans run as. If the requested uid is already taken (e.g.
+# uid 0 = root), reuse that account instead of failing to create a duplicate —
+# this is what previously broke NAME=root (adduser failed, so no user existed at
+# the uid the web layer sudo'd to, and every scan silently failed).
+if getent passwd "$REQ_UID" >/dev/null; then
+  RUN_USER="$(getent passwd "$REQ_UID" | cut -d: -f1)"
+  echo "uid $REQ_UID already exists; scans will run as existing user '$RUN_USER'"
+else
+  adduser "$NAME" --uid "$REQ_UID" --gid "$REQ_GID" --disabled-password --force-badname --gecos ""
+  RUN_USER="$NAME"
+fi
+RUN_UID="$REQ_UID"
+echo "scans run as user '$RUN_USER' (uid $RUN_UID, gid $REQ_GID)"
+
 mkdir -p /scans
 chmod 777 /scans
 touch /var/log/scanner.log
-chown "$NAME" /var/log/scanner.log
-env >/opt/brother/scanner/env.txt
+chown "$RUN_USER" /var/log/scanner.log
+# env.txt is re-sourced by the scan scripts; drop UID (readonly in bash) so they
+# don't hit a harmless "UID: readonly variable" error when re-exporting it.
+env | grep -v '^UID=' >/opt/brother/scanner/env.txt
 chmod -R 777 /opt/brother
 echo "-----"
 
@@ -59,13 +73,13 @@ cat /opt/brother/scanner/brscan-skey/brscan-skey.config
 echo "-----"
 
 echo "starting scanner drivers..."
-su - "$NAME" -c "/usr/bin/brsaneconfig4 -a name=$NAME model=$MODEL ip=$IPADDRESS"
-su - "$NAME" -c "/usr/bin/brscan-skey"
+su - "$RUN_USER" -c "/usr/bin/brsaneconfig4 -a name=$NAME model=$MODEL ip=$IPADDRESS"
+su - "$RUN_USER" -c "/usr/bin/brscan-skey"
 echo "-----"
 
 echo "setting up webserver:"
 if [ "$WEBSERVER" == "true" ]; then
-  echo "www-data ALL=($NAME) NOPASSWD:ALL" >>/etc/sudoers
+  echo "www-data ALL=($RUN_USER) NOPASSWD:ALL" >>/etc/sudoers
 
   echo "starting webserver for API & GUI..."
   # settings.php reads its configuration from the $ENV array we write here.
@@ -86,7 +100,7 @@ if [ "$WEBSERVER" == "true" ]; then
   emit_kv() { echo "  $(php_squote "$1") => $(php_squote "$2"),"; }
   {
     echo "<?php"
-    echo "\$UID = ${USERID};"
+    echo "\$UID = ${RUN_UID};"
     echo "\$ENV = array("
     emit_kv MODEL "$MODEL"
     emit_kv NAME "$NAME"
