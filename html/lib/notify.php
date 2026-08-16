@@ -2,14 +2,12 @@
 /**
  * Notification dispatcher.
  *
- * Reads the channel list from the runtime config and fans a message out to every
- * enabled channel. New channel types are added here in one place; callers (the
- * scan scripts, the dashboard "test" button) never change.
+ * Reads channels/SMTP/address-book from the runtime config and fans a message
+ * out to every enabled destination (Telegram, Discord webhooks, and email to
+ * the address book via SMTP). New destination types are added here in one place.
  *
  * As a library:  require 'notify.php'; notify_send("hello");
- * As a CLI:      php notify.php "message" [channelId]
- *                  - with a channelId, sends to that one channel even if disabled
- *                    (used by the dashboard's per-channel "Send test").
+ * As a CLI:      php notify.php "message"      (used by the scan scripts)
  */
 
 require_once __DIR__ . '/config.php';
@@ -57,49 +55,137 @@ function notify_discord($ch, $message)
 }
 
 /**
- * Dispatch $message. With $onlyChannelId set, sends to exactly that channel
- * (ignoring its enabled flag — for tests); otherwise to all enabled channels.
- * Returns a list of per-channel result arrays.
+ * Send a plain-text email over SMTP using libcurl (no MTA/PHPMailer needed).
+ * $smtp = host, port, security (none|starttls|ssl), username, password, from.
  */
-function notify_send($message, $onlyChannelId = null)
+function smtp_send($smtp, $to, $subject, $body)
 {
+    $smtp = array_merge(config_smtp_defaults(), is_array($smtp) ? $smtp : array());
+    $host = trim($smtp['host']);
+    $to   = trim($to);
+    if ($host === '') return array('ok' => false, 'channel' => 'email', 'error' => 'SMTP host not set');
+    if ($to === '')   return array('ok' => false, 'channel' => 'email', 'error' => 'no recipient');
+
+    $port = (int) $smtp['port'];
+    $sec  = $smtp['security'];
+    $user = $smtp['username'];
+    $pass = $smtp['password'];
+    $from = $smtp['from'] !== '' ? $smtp['from'] : $user;
+    if ($from === '') $from = 'scanner@localhost';
+
+    $scheme = ($sec === 'ssl') ? 'smtps' : 'smtp';
+
+    $eol = "\r\n";
+    $payload =
+        'Date: ' . date('r') . $eol .
+        'From: ' . $from . $eol .
+        'To: ' . $to . $eol .
+        'Subject: ' . $subject . $eol .
+        'MIME-Version: 1.0' . $eol .
+        'Content-Type: text/plain; charset=UTF-8' . $eol . $eol .
+        $body . $eol;
+
+    $fp = fopen('php://temp', 'r+');
+    fwrite($fp, $payload);
+    rewind($fp);
+
+    $ch = curl_init();
+    $opts = array(
+        CURLOPT_URL            => $scheme . '://' . $host . ':' . $port,
+        CURLOPT_MAIL_FROM      => '<' . $from . '>',
+        CURLOPT_MAIL_RCPT      => array('<' . $to . '>'),
+        CURLOPT_UPLOAD         => true,
+        CURLOPT_INFILE         => $fp,
+        CURLOPT_INFILESIZE     => strlen($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 25,
+        CURLOPT_CONNECTTIMEOUT => 10,
+    );
+    if ($sec === 'starttls') {
+        $opts[CURLOPT_USE_SSL] = CURLUSESSL_ALL; // upgrade the plain connection
+    }
+    if ($user !== '') {
+        $opts[CURLOPT_USERNAME] = $user;
+        $opts[CURLOPT_PASSWORD] = $pass;
+    }
+    curl_setopt_array($ch, $opts);
+    curl_exec($ch);
+    $err = curl_error($ch);
+    curl_close($ch);
+    fclose($fp);
+
+    return array('ok' => ($err === ''), 'channel' => 'email:' . $to, 'error' => $err);
+}
+
+/**
+ * Broadcast $message to every enabled destination (channels + email contacts).
+ * Returns a list of per-destination result arrays.
+ */
+function notify_send($message)
+{
+    $cfg = config_load();
     $results = array();
+
     foreach (config_channels() as $ch) {
-        $id = isset($ch['id']) ? $ch['id'] : '';
-        if ($onlyChannelId !== null) {
-            if ($id !== $onlyChannelId) {
-                continue;
-            }
-        } elseif (empty($ch['enabled'])) {
-            continue;
-        }
+        if (empty($ch['enabled'])) continue;
         switch (isset($ch['type']) ? $ch['type'] : '') {
-            case 'telegram':
-                $results[] = notify_telegram($ch, $message);
-                break;
-            case 'discord':
-                $results[] = notify_discord($ch, $message);
-                break;
+            case 'telegram': $results[] = notify_telegram($ch, $message); break;
+            case 'discord':  $results[] = notify_discord($ch, $message); break;
         }
     }
+
+    $email = config_email($cfg);
+    if (!empty($email['enabled'])) {
+        $smtp = config_smtp($cfg);
+        if ($smtp['host'] !== '') {
+            $subject = $email['subject'] !== '' ? $email['subject'] : 'Scanner notification';
+            foreach (config_contacts($cfg) as $c) {
+                if (empty($c['enabled']) || empty($c['email'])) continue;
+                $results[] = smtp_send($smtp, $c['email'], $subject, $message);
+            }
+        }
+    }
+
     return $results;
+}
+
+/**
+ * Ad-hoc test send using explicitly provided params (NOT the saved config), so
+ * the dashboard can test a channel before saving. Returns a single result array.
+ */
+function notify_test($type, $params, $message)
+{
+    switch ($type) {
+        case 'telegram':
+            return notify_telegram($params, $message);
+        case 'discord':
+            return notify_discord($params, $message);
+        case 'email':
+            return smtp_send(
+                isset($params['smtp']) ? $params['smtp'] : array(),
+                isset($params['to']) ? $params['to'] : '',
+                isset($params['subject']) ? $params['subject'] : 'Scanner test',
+                $message
+            );
+        default:
+            return array('ok' => false, 'error' => 'unknown channel type');
+    }
 }
 
 // ---- CLI entry point (used by the scan scripts) ----
 if (php_sapi_name() === 'cli' && isset($argv)) {
-    $msg  = isset($argv[1]) ? $argv[1] : '';
-    $only = isset($argv[2]) ? $argv[2] : null;
+    $msg = isset($argv[1]) ? $argv[1] : '';
     if ($msg === '') {
-        fwrite(STDERR, "usage: php notify.php \"message\" [channelId]\n");
+        fwrite(STDERR, "usage: php notify.php \"message\"\n");
         exit(2);
     }
-    $res = notify_send($msg, $only);
+    $res = notify_send($msg);
     if (empty($res)) {
-        echo "notify: no matching/enabled channels\n";
+        echo "notify: no enabled destinations\n";
     }
     foreach ($res as $r) {
         echo 'notify ' . ($r['channel'] ?? '?') . ': '
-            . (!empty($r['ok']) ? 'ok' : ('FAILED code=' . ($r['code'] ?? '') . ' ' . ($r['error'] ?? '')))
+            . (!empty($r['ok']) ? 'ok' : ('FAILED ' . ($r['error'] ?? '') . (isset($r['code']) ? ' code=' . $r['code'] : '')))
             . "\n";
     }
 }

@@ -82,6 +82,41 @@ a { color: var(--primary); }
     .flash.ok { color: var(--ok); } .flash.err { color: var(--danger); }
 }
 
+/* Tabs */
+.tabs { display: flex; gap: .3rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: .3rem; margin-bottom: 1.1rem; }
+.tab {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 600; font-size: .85rem;
+    flex: 1; border: none; background: transparent; color: var(--text-dim);
+    border-radius: 9px; padding: .55rem .4rem; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    transition: background .15s, color .15s;
+}
+.tab i { font-size: .8rem; }
+.tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.tabpane { display: none; }
+.tabpane.active { display: block; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.field select {
+    width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    border-radius: 10px; padding: .6rem .7rem; font-size: .95rem; font-family: inherit;
+}
+
+/* Inline test */
+.test-row { display: flex; align-items: center; gap: .7rem; margin-top: .9rem; flex-wrap: wrap; }
+.test-result { font-size: .85rem; font-weight: 600; }
+.test-result.muted { color: var(--text-dim); }
+.test-result.good  { color: var(--ok); }
+.test-result.bad   { color: var(--danger); }
+
+/* Address book */
+.contact { display: flex; align-items: center; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid var(--border); }
+.contact:last-of-type { border-bottom: none; }
+.switch.tight { gap: 0; }
+.c-name { flex: 0 0 34%; }
+.c-email { flex: 1; min-width: 0; }
+.contact input[type="text"] { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 9px; padding: .5rem .6rem; font-size: .9rem; font-family: inherit; }
+.c-remove { flex: none; color: var(--danger); padding: .5rem .6rem; }
+
 /* Login */
 .login { max-width: 380px; margin: 12vh auto 0; }
 .login .card { text-align: left; }

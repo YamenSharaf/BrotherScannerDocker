@@ -34,7 +34,51 @@ function config_default()
     return array(
         'version'       => 1,
         'notifications' => array('channels' => $channels),
+        'smtp'          => config_smtp_defaults(),
+        'email'         => array('enabled' => false, 'subject' => 'Scanner notification'),
+        'address_book'  => array(),
     );
+}
+
+function config_smtp_defaults()
+{
+    return array(
+        'host'     => '',
+        'port'     => 587,
+        'security' => 'starttls', // none | starttls | ssl
+        'username' => '',
+        'password' => '',
+        'from'     => '',
+    );
+}
+
+/** SMTP settings with all defaults filled in. */
+function config_smtp($cfg = null)
+{
+    if ($cfg === null) {
+        $cfg = config_load();
+    }
+    $smtp = isset($cfg['smtp']) && is_array($cfg['smtp']) ? $cfg['smtp'] : array();
+    return array_merge(config_smtp_defaults(), $smtp);
+}
+
+/** Email notification settings. */
+function config_email($cfg = null)
+{
+    if ($cfg === null) {
+        $cfg = config_load();
+    }
+    $e = isset($cfg['email']) && is_array($cfg['email']) ? $cfg['email'] : array();
+    return array_merge(array('enabled' => false, 'subject' => 'Scanner notification'), $e);
+}
+
+/** Address-book contacts. */
+function config_contacts($cfg = null)
+{
+    if ($cfg === null) {
+        $cfg = config_load();
+    }
+    return isset($cfg['address_book']) && is_array($cfg['address_book']) ? $cfg['address_book'] : array();
 }
 
 /** Load the config (falling back to the env-seeded default if absent/invalid). */

@@ -216,7 +216,13 @@ Maybe one day an OpenAPI Spec will be included.
 
 ### Admin Dashboard
 
-Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected admin dashboard at `/admin`, reachable from the gear icon in the scanner UI. It lets you manage **notification channels** — currently **Telegram** and **Discord** (email is planned) — without editing environment variables: toggle each on/off, set the bot token / webhook URL, and send a test message.
+Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected admin dashboard at `/admin`, reachable from the gear icon in the scanner UI. It's organised into tabs and lets you configure everything without editing environment variables:
+
+- **Notifications** — **Telegram** and **Discord** channels: toggle each on/off, set the bot token / webhook URL.
+- **SMTP** — outgoing mail server (host, port, security, credentials, from address).
+- **Address Book** — email notifications on/off plus a list of contacts; completed scans are emailed to every enabled contact via SMTP.
+
+Every service has a **Send test** button that uses the values currently in the form, so you can verify a channel *before* saving.
 
 Settings changed in the dashboard are stored in a JSON file and take precedence over the environment (which now only *seeds* the initial values). To make those changes **persist across restarts**, mount a `/config` volume:
 
