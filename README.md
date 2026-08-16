@@ -218,9 +218,11 @@ Maybe one day an OpenAPI Spec will be included.
 
 Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected admin dashboard at `/admin`, reachable from the gear icon in the scanner UI. It's organised into tabs and lets you configure everything without editing environment variables:
 
-- **Notifications** — **Telegram** and **Discord** channels: toggle each on/off, set the bot token / webhook URL.
-- **SMTP** — outgoing mail server (host, port, security, credentials, from address).
-- **Address Book** — email notifications on/off plus a list of contacts; completed scans are emailed to every enabled contact via SMTP.
+- **Notifications** — short *alert* pings ("a scan completed") to **Telegram** and **Discord** channels.
+- **SMTP** — outgoing mail server (host, port, security, credentials, from address) used to email scans.
+- **Address Book** — people who receive a **copy of the scanned PDF**. Each recipient can be reached on email (attachment), Telegram (document — uses the bot token from the Notifications tab + a per-recipient chat id), and/or Discord (file to a channel webhook, with an optional `@mention`). Mark a recipient *"Every scan"* to deliver every completed document to them automatically.
+
+Notifications (alerts) and Address Book (file delivery) are separate: an alert tells you a scan happened; delivery sends the actual file. Files larger than a channel's limit (~8 MB Discord, ~50 MB Telegram, ~20 MB email) are skipped for that channel with a logged warning — the copy in `/scans` is unaffected. Delivery and notifications never block saving to storage.
 
 Every service has a **Send test** button that uses the values currently in the form, so you can verify a channel *before* saving.
 

@@ -553,10 +553,11 @@
                 waiting:        { cls: "state-waiting", icon: "fas fa-hourglass-half",  title: "Waiting for rear pages", sub: "Add the backs, or wait to finalize the document" },
                 scanning_rear:  { cls: "state-scan",    icon: "fas fa-spinner fa-spin", title: "Scanning rear pages…",   sub: "Feeding pages through the scanner" },
                 processing:     { cls: "state-ocr",     icon: "fas fa-cog fa-spin",     title: "Processing…",            sub: "Assembling and cleaning up the PDF" },
+                delivering:     { cls: "state-ocr",     icon: "fas fa-paper-plane",     title: "Delivering…",            sub: "Sending copies to recipients" },
                 ocr:            { cls: "state-ocr",     icon: "fas fa-brain",           title: "Running OCR…",           sub: "Recognizing text on the server" },
                 done:           { cls: "state-done",    icon: "fas fa-check-circle",    title: "Saved",                  sub: "Your document is ready" }
             };
-            var BUSY_STATES = { scanning_front: 1, scanning_rear: 1, processing: 1 };
+            var BUSY_STATES = { scanning_front: 1, scanning_rear: 1, processing: 1, delivering: 1 };
             var haloIcon = document.getElementById("haloIcon");
             var stateTitle = document.getElementById("stateTitle");
             var stateSub = document.getElementById("stateSub");

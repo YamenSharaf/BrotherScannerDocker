@@ -11,6 +11,7 @@
  */
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/mail.php';
 
 function notify_http($url, $postfields, $headers = array())
 {
@@ -54,78 +55,21 @@ function notify_discord($ch, $message)
     return array('ok' => ($r['code'] >= 200 && $r['code'] < 300), 'channel' => 'discord', 'code' => $r['code'], 'error' => $r['error']);
 }
 
-/**
- * Send a plain-text email over SMTP using libcurl (no MTA/PHPMailer needed).
- * $smtp = host, port, security (none|starttls|ssl), username, password, from.
- */
+/** Send a plain-text email over SMTP (delegates to the shared mailer). */
 function smtp_send($smtp, $to, $subject, $body)
 {
-    $smtp = array_merge(config_smtp_defaults(), is_array($smtp) ? $smtp : array());
-    $host = trim($smtp['host']);
-    $to   = trim($to);
-    if ($host === '') return array('ok' => false, 'channel' => 'email', 'error' => 'SMTP host not set');
-    if ($to === '')   return array('ok' => false, 'channel' => 'email', 'error' => 'no recipient');
-
-    $port = (int) $smtp['port'];
-    $sec  = $smtp['security'];
-    $user = $smtp['username'];
-    $pass = $smtp['password'];
-    $from = $smtp['from'] !== '' ? $smtp['from'] : $user;
-    if ($from === '') $from = 'scanner@localhost';
-
-    $scheme = ($sec === 'ssl') ? 'smtps' : 'smtp';
-
-    $eol = "\r\n";
-    $payload =
-        'Date: ' . date('r') . $eol .
-        'From: ' . $from . $eol .
-        'To: ' . $to . $eol .
-        'Subject: ' . $subject . $eol .
-        'MIME-Version: 1.0' . $eol .
-        'Content-Type: text/plain; charset=UTF-8' . $eol . $eol .
-        $body . $eol;
-
-    $fp = fopen('php://temp', 'r+');
-    fwrite($fp, $payload);
-    rewind($fp);
-
-    $ch = curl_init();
-    $opts = array(
-        CURLOPT_URL            => $scheme . '://' . $host . ':' . $port,
-        CURLOPT_MAIL_FROM      => '<' . $from . '>',
-        CURLOPT_MAIL_RCPT      => array('<' . $to . '>'),
-        CURLOPT_UPLOAD         => true,
-        CURLOPT_INFILE         => $fp,
-        CURLOPT_INFILESIZE     => strlen($payload),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 25,
-        CURLOPT_CONNECTTIMEOUT => 10,
-    );
-    if ($sec === 'starttls') {
-        $opts[CURLOPT_USE_SSL] = CURLUSESSL_ALL; // upgrade the plain connection
-    }
-    if ($user !== '') {
-        $opts[CURLOPT_USERNAME] = $user;
-        $opts[CURLOPT_PASSWORD] = $pass;
-    }
-    curl_setopt_array($ch, $opts);
-    curl_exec($ch);
-    $err = curl_error($ch);
-    curl_close($ch);
-    fclose($fp);
-
-    return array('ok' => ($err === ''), 'channel' => 'email:' . $to, 'error' => $err);
+    $r = smtp_send_mail($smtp, $to, $subject, $body);
+    return array('ok' => !empty($r['ok']), 'channel' => 'email:' . $to, 'error' => $r['error'] ?? '');
 }
 
 /**
- * Broadcast $message to every enabled destination (channels + email contacts).
- * Returns a list of per-destination result arrays.
+ * Broadcast a short text ALERT to every enabled notification channel. This is
+ * distinct from scan delivery (deliver.php sends the actual file to the address
+ * book) — notifications are just "a scan happened" pings.
  */
 function notify_send($message)
 {
-    $cfg = config_load();
     $results = array();
-
     foreach (config_channels() as $ch) {
         if (empty($ch['enabled'])) continue;
         switch (isset($ch['type']) ? $ch['type'] : '') {
@@ -133,19 +77,6 @@ function notify_send($message)
             case 'discord':  $results[] = notify_discord($ch, $message); break;
         }
     }
-
-    $email = config_email($cfg);
-    if (!empty($email['enabled'])) {
-        $smtp = config_smtp($cfg);
-        if ($smtp['host'] !== '') {
-            $subject = $email['subject'] !== '' ? $email['subject'] : 'Scanner notification';
-            foreach (config_contacts($cfg) as $c) {
-                if (empty($c['enabled']) || empty($c['email'])) continue;
-                $results[] = smtp_send($smtp, $c['email'], $subject, $message);
-            }
-        }
-    }
-
     return $results;
 }
 

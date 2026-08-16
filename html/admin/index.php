@@ -48,36 +48,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $flash = config_save($cfg) ? array('ok', 'SMTP settings saved.') : array('err', 'Could not write config (/config not writable?).');
 
         } elseif ($action === 'save_addressbook') {
-            $cfg['email'] = array(
-                'enabled' => isset($_POST['email_enabled']),
-                'subject' => trim($_POST['email_subject'] ?? '') !== '' ? trim($_POST['email_subject']) : 'Scanner notification',
-            );
             $contacts = array();
             foreach (($_POST['c'] ?? array()) as $id => $row) {
-                $email = trim($row['email'] ?? '');
-                if ($email === '') continue;
+                $cid = preg_replace('/[^a-z0-9]/', '', (string) $id);
+                if ($cid === '') continue;
                 $contacts[] = array(
-                    'id'      => preg_replace('/[^a-z0-9]/', '', (string) $id),
-                    'name'    => trim($row['name'] ?? ''),
-                    'email'   => $email,
-                    'enabled' => !empty($row['enabled']),
+                    'id'       => $cid,
+                    'name'     => trim($row['name'] ?? ''),
+                    'enabled'  => !empty($row['enabled']),
+                    'default'  => !empty($row['default']),
+                    'channels' => array(
+                        'email'    => array('address' => trim($row['email'] ?? ''), 'on' => !empty($row['email_on'])),
+                        'telegram' => array('chat_id' => trim($row['tg_chat'] ?? ''), 'username' => trim($row['tg_user'] ?? ''), 'on' => !empty($row['tg_on'])),
+                        'discord'  => array('webhook' => trim($row['dc_webhook'] ?? ''), 'mention' => trim($row['dc_mention'] ?? ''), 'on' => !empty($row['dc_on'])),
+                    ),
                 );
             }
             $cfg['address_book'] = $contacts;
-            $flash = config_save($cfg) ? array('ok', 'Address book saved.') : array('err', 'Could not write config (/config not writable?).');
+            $flash = config_save($cfg) ? array('ok', 'Recipients saved.') : array('err', 'Could not write config (/config not writable?).');
 
         } elseif ($action === 'ab_add') {
+            $name  = trim($_POST['new_name'] ?? '');
             $email = trim($_POST['new_email'] ?? '');
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            if ($name === '' && $email === '') {
+                $flash = array('err', 'Enter a name or an email address.');
+            } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $flash = array('err', 'Enter a valid email address.');
             } else {
                 $cfg['address_book'][] = array(
-                    'id'      => bin2hex(random_bytes(4)),
-                    'name'    => trim($_POST['new_name'] ?? ''),
-                    'email'   => $email,
-                    'enabled' => true,
+                    'id'       => bin2hex(random_bytes(4)),
+                    'name'     => $name,
+                    'enabled'  => true,
+                    'default'  => true,
+                    'channels' => array(
+                        'email'    => array('address' => $email, 'on' => $email !== ''),
+                        'telegram' => array('chat_id' => '', 'username' => '', 'on' => false),
+                        'discord'  => array('webhook' => '', 'mention' => '', 'on' => false),
+                    ),
                 );
-                $flash = config_save($cfg) ? array('ok', 'Contact added.') : array('err', 'Could not write config.');
+                $flash = config_save($cfg) ? array('ok', 'Recipient added.') : array('err', 'Could not write config.');
             }
 
         } elseif ($action === 'ab_remove') {
@@ -97,7 +106,6 @@ foreach (config_channels($cfg) as $c) { $chmap[$c['id'] ?? ''] = $c; }
 $tg    = $chmap['telegram'] ?? array('enabled' => false, 'token' => '', 'chat_id' => '');
 $dc    = $chmap['discord']  ?? array('enabled' => false, 'webhook_url' => '');
 $smtp  = config_smtp($cfg);
-$email = config_email($cfg);
 $contacts = config_contacts($cfg);
 $token = csrf_token();
 $h = function ($s) { return htmlspecialchars((string) $s); };
@@ -198,44 +206,62 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
 
         <!-- ============ ADDRESS BOOK ============ -->
         <section class="tabpane" id="tab-addressbook">
-            <p class="desc">When enabled, completed scans are emailed (via SMTP) to every enabled contact.</p>
+            <p class="desc">People who receive a <strong>copy of the scan</strong>. Each <em>default</em> recipient gets every completed scan on the channels you enable below. (Telegram delivery uses the bot token from the Notifications tab.)</p>
             <form method="post" action="/admin/">
                 <input type="hidden" name="csrf" value="<?php echo $h($token); ?>">
                 <input type="hidden" name="action" value="save_addressbook">
                 <input type="hidden" name="active_tab" value="addressbook">
-                <div class="card">
-                    <div class="row" style="margin-bottom:.6rem">
-                        <h2><span class="type-ico"><i class="fas fa-envelope"></i></span> Email notifications</h2>
-                        <label class="switch"><input type="checkbox" name="email_enabled" <?php echo !empty($email['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
-                    </div>
-                    <div class="field"><label>Subject</label><input type="text" name="email_subject" value="<?php echo $h($email['subject']); ?>" placeholder="Scanner notification"></div>
-                </div>
+                <input type="hidden" name="id" id="rm_id" value="">
 
-                <div class="card">
-                    <h2 style="margin-bottom:.6rem"><span class="type-ico"><i class="fas fa-users"></i></span> Contacts</h2>
-                    <?php if (empty($contacts)) { ?>
-                        <p class="desc" style="margin:.2rem 0 .8rem">No contacts yet — add one below.</p>
-                    <?php } foreach ($contacts as $c) { $id = $c['id'] ?? ''; ?>
-                        <div class="contact">
-                            <label class="switch tight"><input type="checkbox" name="c[<?php echo $h($id); ?>][enabled]" <?php echo !empty($c['enabled']) ? 'checked' : ''; ?>><span class="track"></span></label>
-                            <input type="text" name="c[<?php echo $h($id); ?>][name]" value="<?php echo $h($c['name'] ?? ''); ?>" placeholder="Name" class="c-name">
-                            <input type="text" name="c[<?php echo $h($id); ?>][email]" value="<?php echo $h($c['email'] ?? ''); ?>" placeholder="email@example.com" class="c-email">
-                            <button type="button" class="btn ghost c-remove" data-id="<?php echo $h($id); ?>" title="Remove"><i class="fas fa-trash"></i></button>
+                <?php if (empty($contacts)) { ?>
+                    <div class="card"><p class="desc" style="margin:.2rem 0">No recipients yet — add one below.</p></div>
+                <?php } foreach ($contacts as $c) {
+                    $id = $c['id'] ?? '';
+                    $ch = isset($c['channels']) && is_array($c['channels']) ? $c['channels'] : array();
+                    $em = $ch['email'] ?? array(); $tg = $ch['telegram'] ?? array(); $dc = $ch['discord'] ?? array();
+                    $n = function ($f) use ($id, $h) { return 'c[' . $h($id) . '][' . $f . ']'; };
+                ?>
+                    <div class="card contact-card">
+                        <div class="row" style="margin-bottom:.7rem">
+                            <input type="text" name="<?php echo $n('name'); ?>" value="<?php echo $h($c['name'] ?? ''); ?>" placeholder="Name" class="c-name-lg">
+                            <button type="button" class="btn ghost c-remove" data-id="<?php echo $h($id); ?>" title="Remove recipient"><i class="fas fa-trash"></i></button>
                         </div>
-                    <?php } ?>
-                    <input type="hidden" name="id" id="rm_id" value="">
-                    <div class="actions" style="margin-top:.9rem"><button class="btn primary" type="submit"><i class="fas fa-save"></i> Save contacts</button></div>
-                </div>
+                        <div class="flags">
+                            <label class="switch"><input type="checkbox" name="<?php echo $n('enabled'); ?>" <?php echo !empty($c['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Active</label>
+                            <label class="switch"><input type="checkbox" name="<?php echo $n('default'); ?>" <?php echo !empty($c['default']) ? 'checked' : ''; ?>><span class="track"></span> Every scan</label>
+                        </div>
+
+                        <div class="chan-row">
+                            <label class="switch tight"><input type="checkbox" name="<?php echo $n('email_on'); ?>" <?php echo !empty($em['on']) ? 'checked' : ''; ?>><span class="track"></span></label>
+                            <span class="chan-ico"><i class="fas fa-envelope"></i></span>
+                            <input type="text" name="<?php echo $n('email'); ?>" value="<?php echo $h($em['address'] ?? ''); ?>" placeholder="email@example.com" class="grow">
+                        </div>
+                        <div class="chan-row">
+                            <label class="switch tight"><input type="checkbox" name="<?php echo $n('tg_on'); ?>" <?php echo !empty($tg['on']) ? 'checked' : ''; ?>><span class="track"></span></label>
+                            <span class="chan-ico"><i class="fab fa-telegram-plane"></i></span>
+                            <input type="text" name="<?php echo $n('tg_chat'); ?>" value="<?php echo $h($tg['chat_id'] ?? ''); ?>" placeholder="chat id" class="grow">
+                            <input type="text" name="<?php echo $n('tg_user'); ?>" value="<?php echo $h($tg['username'] ?? ''); ?>" placeholder="@user (caption)" class="grow">
+                        </div>
+                        <div class="chan-row">
+                            <label class="switch tight"><input type="checkbox" name="<?php echo $n('dc_on'); ?>" <?php echo !empty($dc['on']) ? 'checked' : ''; ?>><span class="track"></span></label>
+                            <span class="chan-ico"><i class="fab fa-discord"></i></span>
+                            <input type="text" name="<?php echo $n('dc_webhook'); ?>" value="<?php echo $h($dc['webhook'] ?? ''); ?>" placeholder="channel webhook URL" class="grow">
+                            <input type="text" name="<?php echo $n('dc_mention'); ?>" value="<?php echo $h($dc['mention'] ?? ''); ?>" placeholder="user id (mention)" class="grow">
+                        </div>
+                    </div>
+                <?php } ?>
+
+                <div class="actions"><button class="btn primary" type="submit"><i class="fas fa-save"></i> Save recipients</button></div>
             </form>
 
             <form method="post" action="/admin/" class="card">
                 <input type="hidden" name="csrf" value="<?php echo $h($token); ?>">
                 <input type="hidden" name="action" value="ab_add">
                 <input type="hidden" name="active_tab" value="addressbook">
-                <h2 style="margin-bottom:.7rem"><i class="fas fa-user-plus"></i> Add contact</h2>
+                <h2 style="margin-bottom:.7rem"><i class="fas fa-user-plus"></i> Add recipient</h2>
                 <div class="grid2">
                     <div class="field"><label>Name</label><input type="text" name="new_name" placeholder="Alex" autocomplete="off"></div>
-                    <div class="field"><label>Email</label><input type="text" name="new_email" placeholder="alex@example.com" autocomplete="off"></div>
+                    <div class="field"><label>Email (optional)</label><input type="text" name="new_email" placeholder="alex@example.com" autocomplete="off"></div>
                 </div>
                 <div class="actions"><button class="btn" type="submit"><i class="fas fa-plus"></i> Add</button></div>
             </form>
