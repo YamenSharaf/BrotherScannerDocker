@@ -406,6 +406,11 @@
             </div>
         </div>
         <div style="display:flex; gap:.5rem">
+            <?php if (env_str('ADMIN_PASSWORD') !== '' || env_str('ADMIN_PASSWORD_HASH') !== '') { ?>
+            <a class="iconbtn" href="/admin/" title="Admin" aria-label="Admin">
+                <i class="fas fa-sliders-h"></i>
+            </a>
+            <?php } ?>
             <button class="iconbtn" id="btnFiles" title="Recent scans" aria-label="Recent scans">
                 <i class="far fa-folder-open"></i>
             </button>

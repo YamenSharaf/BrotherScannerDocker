@@ -14,6 +14,7 @@ apt-get -y --no-install-recommends install \
   netpbm \
   pdftk \
   php-cgi \
+  php-cli \
   php-curl \
   poppler-utils \
   python3 \

@@ -1,0 +1,89 @@
+/* Admin dashboard styles — shares the app's theme tokens (auto light/dark). */
+:root {
+    --bg: #eef0f4; --bg-accent: #e2e6ee; --surface: #ffffff; --surface-2: #f4f5f8;
+    --border: #e2e5ec; --text: #1b1e27; --text-dim: #6b7280;
+    --primary: #2f6bff; --primary-strong: #1f52d6; --primary-contrast: #ffffff;
+    --ok: #1aa06d; --warn: #d9820a; --danger: #d64545;
+    --shadow: 0 10px 30px rgba(20,27,45,.10), 0 2px 6px rgba(20,27,45,.06);
+    --shadow-sm: 0 1px 2px rgba(20,27,45,.08);
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #0f1115; --bg-accent: #151922; --surface: #191d26; --surface-2: #20252f;
+        --border: #2a303c; --text: #e7eaf0; --text-dim: #9aa2b1;
+        --primary: #5b8bff; --primary-strong: #3f6fe6; --primary-contrast: #0b0e14;
+        --ok: #34c48b; --warn: #eaa13a; --danger: #e46464;
+        --shadow: 0 14px 40px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.35);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(120% 90% at 50% 0%, var(--bg-accent), var(--bg) 60%);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+}
+a { color: var(--primary); }
+
+.wrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: 1.2rem; }
+.topbar h1 { font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: .5rem; }
+.topbar h1 i { color: var(--text-dim); }
+.topbar .right { display: flex; gap: .5rem; align-items: center; }
+
+.card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow-sm);
+    padding: 1.1rem 1.1rem 1.2rem; margin-bottom: 1rem;
+}
+.card h2 { font-size: 1rem; margin: 0 0 .2rem; display: flex; align-items: center; gap: .5rem; }
+.card h2 .type-ico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-dim); font-size: .85rem; }
+.card .desc { color: var(--text-dim); font-size: .85rem; margin: 0 0 .9rem; }
+
+.field { margin-bottom: .75rem; }
+.field label { display: block; font-size: .78rem; font-weight: 600; color: var(--text-dim); margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .02em; }
+.field input[type="text"], .field input[type="password"] {
+    width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    border-radius: 10px; padding: .6rem .7rem; font-size: .95rem; font-family: inherit;
+}
+.field input:focus { outline: none; border-color: var(--primary); }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+
+/* Toggle switch */
+.switch { position: relative; display: inline-flex; align-items: center; gap: .6rem; cursor: pointer; user-select: none; font-weight: 600; font-size: .9rem; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { width: 42px; height: 24px; border-radius: 999px; background: var(--border); transition: background .2s; flex: none; position: relative; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: transform .2s; }
+.switch input:checked + .track { background: var(--ok); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+
+.actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+.btn {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 650;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 10px; padding: .6rem 1rem; box-shadow: var(--shadow-sm);
+    transition: transform .1s, border-color .2s, background .2s;
+}
+.btn:active { transform: scale(.97); }
+.btn:hover { border-color: var(--primary); }
+.btn.primary { background: linear-gradient(180deg, var(--primary), var(--primary-strong)); border-color: transparent; color: var(--primary-contrast); box-shadow: var(--shadow); }
+.btn.ghost { background: transparent; box-shadow: none; }
+
+.flash { border-radius: 12px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: .9rem; font-weight: 600; border: 1px solid var(--border); }
+.flash.ok { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); border-color: var(--ok); color: var(--ok); }
+.flash.err { background: color-mix(in srgb, var(--danger) 14%, var(--surface)); border-color: var(--danger); color: var(--danger); }
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .flash.ok { color: var(--ok); } .flash.err { color: var(--danger); }
+}
+
+/* Login */
+.login { max-width: 380px; margin: 12vh auto 0; }
+.login .card { text-align: left; }
+.login .logo { display: block; width: 56px; height: 56px; margin: 0 auto 1rem; }
+.login h1 { text-align: center; font-size: 1.2rem; margin: 0 0 1.2rem; }

@@ -44,6 +44,13 @@ chown "$RUN_USER" /var/log/scanner.log
 # don't hit a harmless "UID: readonly variable" error when re-exporting it.
 env | grep -v '^UID=' >/opt/brother/scanner/env.txt
 chmod -R 777 /opt/brother
+
+# Runtime config store for the admin dashboard + notifications. Seeded from env
+# on first run (Telegram etc.); afterwards the dashboard owns it. Persisted only
+# if /config is mounted as a volume. Must be writable by the web layer (www-data).
+mkdir -p /config
+php /var/www/html/lib/seed.php || true
+chown -R www-data /config 2>/dev/null || true
 echo "-----"
 
 echo "setting up interface:"
@@ -127,6 +134,10 @@ if [ "$WEBSERVER" == "true" ]; then
     emit_kv USE_JPEG_COMPRESSION "$USE_JPEG_COMPRESSION"
     emit_kv ENABLE_GUI_SCANTOIMAGE "$ENABLE_GUI_SCANTOIMAGE"
     emit_kv ENABLE_GUI_SCANTOOCR "$ENABLE_GUI_SCANTOOCR"
+    # Admin dashboard password (config.php is executed by php, never served as
+    # text, so this is not exposed over HTTP). Prefer ADMIN_PASSWORD_HASH.
+    emit_kv ADMIN_PASSWORD "$ADMIN_PASSWORD"
+    emit_kv ADMIN_PASSWORD_HASH "$ADMIN_PASSWORD_HASH"
     echo ");"
   } >/var/www/html/config.php
   chown www-data /var/www/html/config.php

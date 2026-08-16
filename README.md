@@ -122,8 +122,10 @@ You can configure the tool via environment variables:
 | ENABLE_GUI_SCANTOIMAGE | optional | shows the "Scan to image" button (hidden by default; only enable once you mount a working `scantoimage-*.sh`) |
 | ENABLE_GUI_SCANTOOCR | optional | shows the "Scan to OCR" button (hidden by default; only enable once you mount a working `scantoocr-*.sh`) |
 | USE_JPEG_COMPRESSION | optional | use JPEG compression when creating PDFs |
-| TELEGRAM_TOKEN | optional | If TELEGRAM_TOKEN and TELEGRAM_CHATID are set, then this sends notification |
-| TELEGRAM_CHATID | optional | If TELEGRAM_TOKEN and TELEGRAM_CHATID are set, then this sends notification |
+| TELEGRAM_TOKEN | optional | Telegram bot token. Seeds the Telegram channel on first run; afterwards manage it in the Admin dashboard (see below). |
+| TELEGRAM_CHATID | optional | Telegram chat id, paired with TELEGRAM_TOKEN. |
+| ADMIN_PASSWORD | optional | Enables the Admin dashboard at `/admin` and sets its password. |
+| ADMIN_PASSWORD_HASH | optional | Bcrypt hash alternative to ADMIN_PASSWORD (preferred; generate with `php -r 'echo password_hash("yourpass", PASSWORD_DEFAULT);'`). |
 
 ### FTPS upload
 
@@ -211,6 +213,25 @@ The GUI uses a minimal "API" at the backend, which you can also use from other t
 To scan, simply call `http://<ContainerIP>:<Port>/scan.php?target=<file|email|image|OCR>`
 Also check out the endpoints `list.php`, `download.php`, `active.php`.
 Maybe one day an OpenAPI Spec will be included.
+
+### Admin Dashboard
+
+Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected admin dashboard at `/admin`, reachable from the gear icon in the scanner UI. It lets you manage **notification channels** — currently **Telegram** and **Discord** (email is planned) — without editing environment variables: toggle each on/off, set the bot token / webhook URL, and send a test message.
+
+Settings changed in the dashboard are stored in a JSON file and take precedence over the environment (which now only *seeds* the initial values). To make those changes **persist across restarts**, mount a `/config` volume:
+
+```yaml
+        volumes:
+            - /path/on/host:/scans
+            - /path/on/host/config:/config   # persists admin/notification settings
+        environment:
+            - ADMIN_PASSWORD=changeme
+```
+
+Notes:
+- Only `/admin` requires the password; the scan buttons stay open, as before.
+- `/config` is kept outside the web root, so its secrets are never served. If you don't mount it, the settings still work but reset to the env-seeded defaults on each restart.
+- The scan GUI is otherwise unchanged.
 
 ## Full Docker Compose Example
 
