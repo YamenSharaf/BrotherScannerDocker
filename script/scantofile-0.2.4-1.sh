@@ -6,7 +6,9 @@
   #override environment, as brscan is screwing it up:
   export $(grep -v '^#' /opt/brother/scanner/env.txt | xargs)
 
-  resolution="${RESOLUTION:-300}"
+  # GUI_RESOLUTION is an optional per-scan override from the web UI (passed via
+  # sudo env_keep); falls back to the RESOLUTION env default, then 300.
+  resolution="${GUI_RESOLUTION:-${RESOLUTION:-300}}"
 
   gm_opts=(-page A4+0+0)
   if [ "$USE_JPEG_COMPRESSION" = "true" ]; then

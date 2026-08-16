@@ -221,6 +221,40 @@
         }
         .chip i { font-size: .72rem; color: var(--ok); }
 
+        /* ---- Resolution selector ---- */
+        .reso { margin-top: 1.3rem; }
+        .reso-head {
+            display: flex; align-items: center; justify-content: center; gap: .4rem;
+            font-size: .78rem; font-weight: 600; letter-spacing: .02em;
+            color: var(--text-dim); text-transform: uppercase;
+            margin: 0 0 .6rem;
+        }
+        .reso-head i { color: var(--text-dim); font-size: .78rem; }
+        .reso-unit { text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 500; }
+        .reso-opts { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+        .reso-pill {
+            flex: 0 0 auto;
+            appearance: none; cursor: pointer;
+            min-width: 3.1rem;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+            border-radius: 999px;
+            padding: .42rem .7rem;
+            font-size: .85rem; font-weight: 650;
+            box-shadow: var(--shadow-sm);
+            transition: transform .12s, background .2s, border-color .2s, color .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .reso-pill:hover { border-color: var(--primary); }
+        .reso-pill:active { transform: scale(.94); }
+        .reso-pill.active {
+            background: var(--primary);
+            border-color: transparent;
+            color: var(--primary-contrast);
+            box-shadow: var(--shadow);
+        }
+
         /* ---- Action buttons ---- */
         .actions {
             display: flex; flex-direction: column; gap: .7rem;
@@ -389,12 +423,20 @@
         if ($FEATURES['ftp'])           { $activeFeatures[] = array('fa-upload', 'FTP upload'); }
         if ($FEATURES['telegram'])      { $activeFeatures[] = array('fa-paper-plane', 'Telegram'); }
         if ($FEATURES['jpeg'])          { $activeFeatures[] = array('fa-file-image', 'JPEG compression'); }
-        $activeFeatures[] = array('fa-tachometer-alt', $RESOLUTION . ' dpi');
         ?>
         <div class="chips">
             <?php foreach ($activeFeatures as $f) { ?>
                 <span class="chip"><i class="fas <?php echo $f[0]; ?>"></i><?php echo htmlspecialchars($f[1]); ?></span>
             <?php } ?>
+        </div>
+
+        <div class="reso">
+            <div class="reso-head"><i class="fas fa-tachometer-alt"></i> Resolution <span class="reso-unit">dpi</span></div>
+            <div class="reso-opts" id="resoOpts" data-default="<?php echo htmlspecialchars($RESOLUTION); ?>">
+                <?php foreach ($RESOLUTIONS as $r) { ?>
+                    <button type="button" class="reso-pill" data-dpi="<?php echo htmlspecialchars($r); ?>"><?php echo htmlspecialchars($r); ?></button>
+                <?php } ?>
+            </div>
         </div>
 
         <div class="actions">
@@ -467,6 +509,29 @@
                 toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
             }
 
+            /* ---------- Resolution selector ---------- */
+            var resoOpts = document.getElementById("resoOpts");
+            var pills = resoOpts ? Array.prototype.slice.call(resoOpts.querySelectorAll(".reso-pill")) : [];
+            var available = pills.map(function (b) { return b.getAttribute("data-dpi"); });
+            var defaultReso = resoOpts ? resoOpts.getAttribute("data-default") : "300";
+            var selectedReso = localStorage.getItem("scanner-resolution");
+            if (available.indexOf(selectedReso) === -1) {
+                selectedReso = available.indexOf(defaultReso) !== -1 ? defaultReso : (available[0] || "300");
+            }
+            function markReso() {
+                pills.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-dpi") === selectedReso); });
+            }
+            markReso();
+            if (resoOpts) {
+                resoOpts.addEventListener("click", function (e) {
+                    var b = e.target.closest(".reso-pill");
+                    if (!b) return;
+                    selectedReso = b.getAttribute("data-dpi");
+                    localStorage.setItem("scanner-resolution", selectedReso);
+                    markReso();
+                });
+            }
+
             /* ---------- Status polling ---------- */
             var STATES = {
                 idle:    { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",       sub: "Pick an action below" },
@@ -517,7 +582,7 @@
                     if (btn.classList.contains("busy")) return;
                     var target = btn.getAttribute("data-trigger");
                     var label = btn.querySelector(".b-label").textContent;
-                    var body = new URLSearchParams({ target: target });
+                    var body = new URLSearchParams({ target: target, resolution: selectedReso });
                     fetch("/scan.php", { method: "POST", body: body })
                         .then(function () { toast(label + " started"); })
                         .catch(function () { toast("Could not reach scanner"); });

@@ -15,6 +15,17 @@ if (empty($target)) {
         header($_SERVER["SERVER_PROTOCOL"] . " 400 Bad Request");
         die("Error: No scanning function selected (try append: ?target=<file|email|image|ocr>)");
 }
+
+// Optional per-scan resolution. Validated strictly against the scanner's
+// supported list before being handed to the scan script via a preserved env var
+// (sudoers: Defaults env_keep += "GUI_RESOLUTION"). Never interpolated into the
+// command line, so it cannot be used for injection.
+$resolution = isset($_POST['resolution']) ? $_POST['resolution']
+            : (isset($_GET['resolution']) ? $_GET['resolution'] : '');
+if ($resolution !== '' && in_array((string) $resolution, $RESOLUTIONS, true)) {
+        putenv('GUI_RESOLUTION=' . $resolution);
+}
+
 if (in_array($target, $SCAN_TARGETS, true)) {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //return immediately

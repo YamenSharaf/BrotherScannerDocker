@@ -102,7 +102,8 @@ You can configure the tool via environment variables:
 | NAME  | mandatory | Arbitrary (avoid spaces) name to give your scanner. Displayed on scanner, if multiple servers are running. |
 | MODEL  | mandatory | Model of your scanner (e.g., MFC-L2700DW) |
 | IPADDRESS | mandatory | IP Address of your scanner |
-| RESOLUTION | optional | DPI resolution of scan, refer to capabilities of printer on startup |
+| RESOLUTION | optional | Default DPI resolution of scan (default: 300). The GUI shows a resolution selector, pre-selected to this value; the chosen value applies per scan. |
+| RESOLUTIONS | optional | Comma-separated list of DPI values to offer in the GUI selector. Normally auto-detected from the scanner (`scanimage -A`); set this only to override. |
 | REMOVE_BLANK_THRESHOLD | optional | Percentage of content in page until which a page is considered blank. A good default is 0.3. Blank pages are removed if this variable is defined |
 | REMOVE_ORIGINAL_AFTER_OCR | optional | Deletes the original scan, once OCR file is saved (default: false) |
 | FTP_USER | optional | Username of an FTP(S) server to upload the completed scan to (see below) |

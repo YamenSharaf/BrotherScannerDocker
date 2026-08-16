@@ -47,6 +47,25 @@ $MODEL      = env_str('MODEL', 'Scanner');
 $NAME       = env_str('NAME', 'Scanner');
 $RESOLUTION = env_str('RESOLUTION', '300');
 
+// Resolutions offered in the GUI selector. runScanner.sh detects these from the
+// scanner (scanimage -A) and writes a CSV; validate to positive integers, fall
+// back to a sane list, and make sure the current default is always selectable.
+$RESOLUTIONS = array();
+foreach (explode(',', env_str('RESOLUTIONS', '')) as $r) {
+    $r = trim($r);
+    if ($r !== '' && ctype_digit($r)) {
+        $RESOLUTIONS[] = $r;
+    }
+}
+if (count($RESOLUTIONS) < 2) {
+    $RESOLUTIONS = array('100', '200', '300', '400', '600');
+}
+if (!in_array($RESOLUTION, $RESOLUTIONS, true)) {
+    $RESOLUTIONS[] = $RESOLUTION;
+}
+$RESOLUTIONS = array_values(array_unique($RESOLUTIONS));
+sort($RESOLUTIONS, SORT_NUMERIC);
+
 /**
  * Post-processing capabilities that are actually configured. Surfaced in the
  * GUI as read-only "chips" so the user can see what will happen to a scan —

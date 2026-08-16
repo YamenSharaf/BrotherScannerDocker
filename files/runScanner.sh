@@ -79,6 +79,9 @@ echo "-----"
 
 echo "setting up webserver:"
 if [ "$WEBSERVER" == "true" ]; then
+  # Let the web layer pass a per-scan resolution to the scan scripts through
+  # sudo (scan.php sets GUI_RESOLUTION via putenv; env_keep preserves it).
+  echo "Defaults env_keep += \"GUI_RESOLUTION\"" >>/etc/sudoers
   echo "www-data ALL=($RUN_USER) NOPASSWD:ALL" >>/etc/sudoers
 
   echo "starting webserver for API & GUI..."
@@ -96,6 +99,14 @@ if [ "$WEBSERVER" == "true" ]; then
   #    (the footgun of the previous generator).
   #  - $USERID (root -> 1000) fixes the previous $UID-vs-USERID mismatch, where
   #    the API could sudo to a user id that did not match the created user.
+  # Detect the resolutions this scanner supports, for the GUI selector. Prefer an
+  # explicit RESOLUTIONS override; else parse `scanimage -A` (the
+  # "--resolution 100|150|...|9600dpi" line); else fall back to a sane list.
+  RES_LIST="$(printenv RESOLUTIONS)"
+  [[ -z "$RES_LIST" ]] && RES_LIST="$(scanimage -A 2>/dev/null | sed -nE 's/.*--resolution[[:space:]]+([0-9|]+)dpi.*/\1/p' | head -1 | tr '|' ',')"
+  [[ -z "$RES_LIST" ]] && RES_LIST="100,200,300,400,600"
+  echo "supported resolutions: $RES_LIST"
+
   php_squote() { local s=${1//\\/\\\\}; s=${s//\'/\\\'}; printf "'%s'" "$s"; }
   emit_kv() { echo "  $(php_squote "$1") => $(php_squote "$2"),"; }
   {
@@ -105,6 +116,7 @@ if [ "$WEBSERVER" == "true" ]; then
     emit_kv MODEL "$MODEL"
     emit_kv NAME "$NAME"
     emit_kv RESOLUTION "$RESOLUTION"
+    emit_kv RESOLUTIONS "$RES_LIST"
     emit_kv OCR_SERVER "$OCR_SERVER"
     emit_kv OCR_PORT "$OCR_PORT"
     emit_kv OCR_PATH "$OCR_PATH"
