@@ -265,7 +265,7 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
                 <div class="actions"><button class="btn primary" type="submit"><i class="fas fa-save"></i> Save recipients</button></div>
             </form>
 
-            <form method="post" action="/admin/" class="card">
+            <form method="post" action="/admin/" class="card" style="margin-top: 1.75rem">
                 <input type="hidden" name="csrf" value="<?php echo $h($token); ?>">
                 <input type="hidden" name="action" value="ab_add">
                 <input type="hidden" name="active_tab" value="addressbook">

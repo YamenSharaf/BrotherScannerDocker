@@ -16,9 +16,9 @@ if (is_readable($statefile)) {
     $s = trim((string) @file_get_contents($statefile));
     $age = time() - (int) @filemtime($statefile);
     if ($s !== '') {
-        if ($s === 'done') {
-            // Brief "done" confirmation, then fall back to idle.
-            $state = ($age <= 8) ? 'done' : 'idle';
+        if ($s === 'done' || $s === 'sent') {
+            // Brief terminal confirmation ("Saved"/"Sent"), then fall back to idle.
+            $state = ($age <= 8) ? $s : 'idle';
         } elseif ($age > 1200) {
             // Safety net: a job that never wrote a terminal state (e.g. crashed)
             // shouldn't leave the UI stuck. After 20 min, treat as idle.

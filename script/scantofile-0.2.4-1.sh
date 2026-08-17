@@ -90,7 +90,7 @@
       if [ "${GUI_SKIP_SAVE:-}" = "1" ]; then
         if php /var/www/html/lib/deliver.php "$build_pdf" "${GUI_RECIPIENTS:-}"; then
           echo "skip-save: delivered, not keeping a local copy for $date"
-          set_state done
+          set_state sent
           cd /scans || exit
           rm -rf "$tmp_dir"
           exit 0

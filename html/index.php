@@ -744,7 +744,8 @@ foreach (config_contacts() as $c) {
                 processing:     { cls: "state-ocr",     icon: "fas fa-cog fa-spin",     title: "Processing…",            sub: "Assembling and cleaning up the PDF" },
                 delivering:     { cls: "state-ocr",     icon: "fas fa-paper-plane",     title: "Delivering…",            sub: "Sending copies to recipients" },
                 ocr:            { cls: "state-ocr",     icon: "fas fa-brain",           title: "Running OCR…",           sub: "Recognizing text on the server" },
-                done:           { cls: "state-done",    icon: "fas fa-check-circle",    title: "Saved",                  sub: "Your document is ready" }
+                done:           { cls: "state-done",    icon: "fas fa-check-circle",    title: "Saved",                  sub: "Your document is ready" },
+                sent:           { cls: "state-done",    icon: "fas fa-paper-plane",     title: "Sent",                   sub: "Delivered to recipients — not saved locally" }
             };
             var BUSY_STATES = { scanning_front: 1, scanning_rear: 1, processing: 1, delivering: 1 };
             var haloIcon = document.getElementById("haloIcon");
