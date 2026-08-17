@@ -71,12 +71,32 @@
     (
       echo "converting to PDF for $date..."
       set_state processing
-      gm convert ${gm_opts[@]} "$filename_base"*.pnm "$output_pdf_file"
-      ${script_dir}/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
+      # Privacy mode (GUI_SKIP_SAVE=1): build the PDF in /tmp and never write it
+      # to /scans; deliver it, keeping a local copy ONLY if delivery fails so a
+      # scan is never lost.
+      if [ "${GUI_SKIP_SAVE:-}" = "1" ]; then
+        build_pdf="${tmp_dir}/${date}.pdf"
+      else
+        build_pdf="$output_pdf_file"
+      fi
+      gm convert ${gm_opts[@]} "$filename_base"*.pnm "$build_pdf"
       php /var/www/html/lib/notify.php "${date}.pdf (front) scanned" || true
       set_state delivering
-      php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
-      set_state processing
+      if [ "${GUI_SKIP_SAVE:-}" = "1" ]; then
+        if php /var/www/html/lib/deliver.php "$build_pdf" "${GUI_RECIPIENTS:-}"; then
+          echo "skip-save: delivered, not keeping a local copy for $date"
+          set_state done
+          cd /scans || exit
+          rm -rf "$tmp_dir"
+          exit 0
+        fi
+        echo "skip-save: delivery failed/none for $date — keeping local copy as fallback"
+        mv "$build_pdf" "$output_pdf_file"
+      fi
+      ${script_dir}/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
+      if [ "${GUI_SKIP_SAVE:-}" != "1" ]; then
+        php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
+      fi
 	  ${script_dir}/sendtoftps.sh \
             "${FTP_USER}" \
             "${FTP_PASSWORD}" \

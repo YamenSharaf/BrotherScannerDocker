@@ -158,10 +158,17 @@ if (php_sapi_name() === 'cli' && isset($argv)) {
         exit(2);
     }
     $res = deliver_send($path, $ids);
+    $anyOk = false;
+    foreach ($res as $r) {
+        if (!empty($r['ok'])) {
+            $anyOk = true;
+        }
+        echo 'deliver ' . $r['channel'] . ': ' . ($r['ok'] ? 'ok' : ('FAILED ' . $r['error'])) . "\n";
+    }
     if (empty($res)) {
         echo "deliver: no recipients\n";
     }
-    foreach ($res as $r) {
-        echo 'deliver ' . $r['channel'] . ': ' . ($r['ok'] ? 'ok' : ('FAILED ' . $r['error'])) . "\n";
-    }
+    // Exit non-zero when nothing was delivered, so callers (skip-save) can keep
+    // a local fallback copy instead of losing the scan.
+    exit($anyOk ? 0 : 1);
 }

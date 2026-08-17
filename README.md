@@ -224,6 +224,8 @@ Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected
 
 Recipients **not** marked "Every scan" instead appear as a **"Send a copy to"** picker on the scan screen, so a walk-up user can send an individual scan to them on demand (in addition to the default recipients). The picker only shows names + channel icons, never the addresses.
 
+When any recipient is configured, the scan screen also shows a **"Deliver only — don't keep a local copy"** toggle. With it on, the scan is delivered to recipients and **never written to `/scans`** (useful for privacy / not archiving one-off scans). As a safety net, if delivery fails or no recipient is reached, the file is kept in `/scans` after all, so a scan is never lost.
+
 Notifications (alerts) and Address Book (file delivery) are separate: an alert tells you a scan happened; delivery sends the actual file. Files larger than a channel's limit (~8 MB Discord, ~50 MB Telegram, ~20 MB email) are skipped for that channel with a logged warning — the copy in `/scans` is unaffected. Delivery and notifications never block saving to storage.
 
 Every service has a **Send test** button that uses the values currently in the form, so you can verify a channel *before* saving.

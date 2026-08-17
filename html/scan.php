@@ -34,6 +34,12 @@ if ($recipients !== '') {
         putenv('GUI_RECIPIENTS=' . $recipients);
 }
 
+// Optional "don't keep a local copy" (privacy) toggle: deliver the scan but do
+// not persist it to /scans. See the scan scripts for the fallback behaviour.
+if (!empty($_POST['skip_save']) || !empty($_GET['skip_save'])) {
+        putenv('GUI_SKIP_SAVE=1');
+}
+
 if (in_array($target, $SCAN_TARGETS, true)) {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //return immediately

@@ -7,8 +7,9 @@ require_once __DIR__ . '/lib/config.php';
 // Only names + channel icons are exposed here — never the actual addresses,
 // since the scan GUI is unauthenticated.
 $pickable = array();
+$hasDelivery = false; // any enabled recipient (default or not) that can receive files
 foreach (config_contacts() as $c) {
-    if (empty($c['enabled']) || !empty($c['default'])) {
+    if (empty($c['enabled'])) {
         continue;
     }
     $cch = isset($c['channels']) && is_array($c['channels']) ? $c['channels'] : array();
@@ -18,6 +19,10 @@ foreach (config_contacts() as $c) {
     if (!empty($cch['discord']['on']))  { $chans[] = 'fab fa-discord'; }
     if (empty($chans)) {
         continue;
+    }
+    $hasDelivery = true;
+    if (!empty($c['default'])) {
+        continue; // defaults always receive scans — not shown in the opt-in picker
     }
     $pickable[] = array(
         'id'    => $c['id'] ?? '',
@@ -300,6 +305,20 @@ foreach (config_contacts() as $c) {
         .recip.checked { background: var(--primary); border-color: transparent; color: var(--primary-contrast); box-shadow: var(--shadow); }
         .recip.checked .recip-chans { opacity: .9; }
 
+        /* ---- "Deliver only" (skip local save) toggle ---- */
+        .skip-save-row { display: flex; justify-content: center; }
+        .skip-pill {
+            display: inline-flex; align-items: center; gap: .45rem;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+            border-radius: 999px; padding: .45rem .9rem; font-size: .84rem; font-weight: 600;
+            cursor: pointer; box-shadow: var(--shadow-sm);
+            transition: transform .12s, background .2s, border-color .2s, color .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .skip-pill:active { transform: scale(.97); }
+        .skip-pill input { display: none; }
+        .skip-pill.on { background: var(--warn); border-color: transparent; color: #fff; box-shadow: var(--shadow); }
+
         /* ---- Action buttons ---- */
         .actions {
             display: flex; flex-direction: column; gap: .7rem;
@@ -512,6 +531,15 @@ foreach (config_contacts() as $c) {
         </div>
         <?php } ?>
 
+        <?php if ($hasDelivery) { ?>
+        <div class="recipients skip-save-row">
+            <label class="skip-pill" id="skipSavePill">
+                <input type="checkbox" id="skipSave">
+                <i class="fas fa-user-secret"></i> Deliver only — don't keep a local copy
+            </label>
+        </div>
+        <?php } ?>
+
         <div class="actions">
             <?php foreach ($BUTTONS as $key => $b) {
                 if (!$b['enabled']) { continue; }
@@ -618,6 +646,13 @@ foreach (config_contacts() as $c) {
                     .join(",");
             }
 
+            var skipSave = document.getElementById("skipSave");
+            if (skipSave) {
+                skipSave.addEventListener("change", function () {
+                    document.getElementById("skipSavePill").classList.toggle("on", skipSave.checked);
+                });
+            }
+
             /* ---------- Status polling ---------- */
             var STATES = {
                 idle:           { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",          sub: "Pick an action below" },
@@ -670,7 +705,12 @@ foreach (config_contacts() as $c) {
                     if (btn.classList.contains("busy")) return;
                     var target = btn.getAttribute("data-trigger");
                     var label = btn.querySelector(".b-label").textContent;
-                    var body = new URLSearchParams({ target: target, resolution: selectedReso, recipients: selectedRecipients() });
+                    var body = new URLSearchParams({
+                        target: target,
+                        resolution: selectedReso,
+                        recipients: selectedRecipients(),
+                        skip_save: (skipSave && skipSave.checked) ? "1" : ""
+                    });
                     fetch("/scan.php", { method: "POST", body: body })
                         .then(function () { toast(label + " started"); })
                         .catch(function () { toast("Could not reach scanner"); });

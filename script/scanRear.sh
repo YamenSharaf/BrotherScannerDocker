@@ -100,12 +100,25 @@ fi
           "${output_pdf_file}"
 
     $remove_blank "$tmp_output_pdf_file"
-    mv "$tmp_output_pdf_file" "$output_pdf_file"
-
-    $script_dir/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
 
     set_state delivering
-    php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
+    # Privacy mode (GUI_SKIP_SAVE=1): deliver from /tmp and never write to /scans;
+    # keep a local copy ONLY if delivery fails so a scan is never lost.
+    if [ "${GUI_SKIP_SAVE:-}" = "1" ]; then
+      if php /var/www/html/lib/deliver.php "$tmp_output_pdf_file" "${GUI_RECIPIENTS:-}"; then
+        echo "skip-save: delivered, not keeping a local copy for $date"
+        set_state done
+        cd /scans || exit
+        rm -rf "$tmp_dir"
+        exit 0
+      fi
+      echo "skip-save: delivery failed/none for $date — keeping local copy as fallback"
+    fi
+    mv "$tmp_output_pdf_file" "$output_pdf_file"
+    $script_dir/trigger_inotify.sh "${SSH_USER}" "${SSH_PASSWORD}" "${SSH_HOST}" "${SSH_PATH}" "${output_pdf_file}"
+    if [ "${GUI_SKIP_SAVE:-}" != "1" ]; then
+      php /var/www/html/lib/deliver.php "$output_pdf_file" "${GUI_RECIPIENTS:-}" || true
+    fi
 
     echo "cleaning up for $date..."
     cd /scans || exit
