@@ -37,8 +37,90 @@ function config_default()
         'discord'       => config_discord_defaults(),
         'smtp'          => config_smtp_defaults(),
         'email'         => array('enabled' => false, 'subject' => 'Scanner notification'),
+        'processing'    => config_seed_processing(),
+        'ocr'           => config_seed_ocr(),
+        'ftp'           => config_seed_ftp(),
+        'sync'          => config_seed_sync(),
         'address_book'  => array(),
     );
+}
+
+/** true if an env var is set to a truthy value. */
+function _cfg_envbool($k)
+{
+    $v = getenv($k);
+    return $v !== false && in_array(strtolower(trim($v)), array('1', 'true', 'yes', 'on'), true);
+}
+function _cfg_env($k, $default = '')
+{
+    $v = getenv($k);
+    return ($v === false || trim($v) === '') ? $default : trim($v);
+}
+
+// ---- Seed the migrated sections from environment variables (first run only) ----
+function config_seed_processing()
+{
+    return array(
+        'resolution'      => _cfg_env('RESOLUTION', '300'),
+        'mode'            => _cfg_env('MODE', '24bit Color[Fast]'),
+        'blank_threshold' => _cfg_env('REMOVE_BLANK_THRESHOLD', ''), // empty = disabled
+        'jpeg'            => _cfg_envbool('USE_JPEG_COMPRESSION'),
+    );
+}
+function config_seed_ocr()
+{
+    $s = _cfg_env('OCR_SERVER'); $p = _cfg_env('OCR_PORT'); $pa = _cfg_env('OCR_PATH');
+    return array(
+        'enabled'         => ($s !== '' && $p !== '' && $pa !== ''),
+        'server'          => $s, 'port' => $p, 'path' => $pa,
+        'remove_original' => _cfg_envbool('REMOVE_ORIGINAL_AFTER_OCR'),
+    );
+}
+function config_seed_ftp()
+{
+    $h = _cfg_env('FTP_HOST'); $u = _cfg_env('FTP_USER');
+    return array(
+        'enabled' => ($h !== '' && $u !== ''),
+        'host' => $h, 'user' => $u,
+        'password' => (string) getenv('FTP_PASSWORD'),
+        'path' => _cfg_env('FTP_PATH', '/scans/'),
+    );
+}
+function config_seed_sync()
+{
+    $h = _cfg_env('SSH_HOST'); $u = _cfg_env('SSH_USER');
+    return array(
+        'enabled' => ($h !== '' && $u !== ''),
+        'host' => $h, 'user' => $u,
+        'password' => (string) getenv('SSH_PASSWORD'),
+        'path' => _cfg_env('SSH_PATH'),
+    );
+}
+
+// ---- Accessors (saved config merged over hardcoded fallbacks) ----
+function config_processing($cfg = null)
+{
+    $cfg = $cfg ?? config_load();
+    $p = $cfg['processing'] ?? array();
+    return array_merge(array('resolution' => '300', 'mode' => '24bit Color[Fast]', 'blank_threshold' => '', 'jpeg' => false), is_array($p) ? $p : array());
+}
+function config_ocr($cfg = null)
+{
+    $cfg = $cfg ?? config_load();
+    $o = $cfg['ocr'] ?? array();
+    return array_merge(array('enabled' => false, 'server' => '', 'port' => '', 'path' => '', 'remove_original' => false), is_array($o) ? $o : array());
+}
+function config_ftp($cfg = null)
+{
+    $cfg = $cfg ?? config_load();
+    $f = $cfg['ftp'] ?? array();
+    return array_merge(array('enabled' => false, 'host' => '', 'user' => '', 'password' => '', 'path' => '/scans/'), is_array($f) ? $f : array());
+}
+function config_sync($cfg = null)
+{
+    $cfg = $cfg ?? config_load();
+    $s = $cfg['sync'] ?? array();
+    return array_merge(array('enabled' => false, 'host' => '', 'user' => '', 'password' => '', 'path' => ''), is_array($s) ? $s : array());
 }
 
 /** Global appearance for outgoing Discord webhook messages (notifications + delivery). */
@@ -116,7 +198,11 @@ function config_load()
     if (is_file(CONFIG_FILE)) {
         $cfg = json_decode((string) @file_get_contents(CONFIG_FILE), true);
         if (is_array($cfg)) {
-            return $cfg;
+            // Upgrade path: a config.json written before a section existed (e.g.
+            // processing/ocr/ftp/sync) inherits that section's env-seeded default,
+            // while every section the file already defines wins. Top-level merge
+            // only — the per-section accessors fill in any missing sub-keys.
+            return array_merge(config_default(), $cfg);
         }
     }
     return config_default();

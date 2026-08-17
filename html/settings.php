@@ -43,9 +43,13 @@ function env_bool($key)
     return in_array(strtolower(env_str($key)), array('1', 'true', 'yes', 'on'), true);
 }
 
+require_once __DIR__ . '/lib/config.php';
+$RUNTIME = config_load();           // dashboard-managed settings (config.json)
+$PROC    = config_processing($RUNTIME);
+
 $MODEL      = env_str('MODEL', 'Scanner');
 $NAME       = env_str('NAME', 'Scanner');
-$RESOLUTION = env_str('RESOLUTION', '300');
+$RESOLUTION = $PROC['resolution'] !== '' ? $PROC['resolution'] : '300';
 
 // Resolutions offered in the GUI selector. runScanner.sh detects these from the
 // scanner (scanimage -A) and writes a CSV; validate to positive integers, fall
@@ -69,7 +73,7 @@ sort($RESOLUTIONS, SORT_NUMERIC);
 // Scan colour mode. The exact strings are what scanimage's --mode expects (these
 // are the standard brscan4 modes); the labels are friendlier for the picker. The
 // default matches the scanner's own default; the GUI remembers the user's choice.
-$MODE   = env_str('MODE', '24bit Color[Fast]');
+$MODE   = $PROC['mode'] !== '' ? $PROC['mode'] : '24bit Color[Fast]';
 $MODES  = array('Black & White', 'Gray[Error Diffusion]', 'True Gray', '24bit Color', '24bit Color[Fast]');
 if (!in_array($MODE, $MODES, true)) {
     array_unshift($MODES, $MODE);
@@ -87,14 +91,18 @@ $MODE_LABELS = array(
  * GUI as read-only "chips" so the user can see what will happen to a scan —
  * honest status rather than fake buttons.
  */
+$_ocr = config_ocr($RUNTIME);
+$_ftp = config_ftp($RUNTIME);
+$_telegramOn = false;
+foreach (config_channels($RUNTIME) as $_c) {
+    if (($_c['type'] ?? '') === 'telegram' && !empty($_c['enabled'])) { $_telegramOn = true; break; }
+}
 $FEATURES = array(
-    'ocr'           => env_str('OCR_SERVER') !== '' && env_str('OCR_PORT') !== '' && env_str('OCR_PATH') !== '',
-    'ftp'           => env_str('FTP_HOST') !== '' && env_str('FTP_USER') !== '',
-    // Detected via TELEGRAM_CHATID: the secret TELEGRAM_TOKEN is intentionally
-    // not written into config.php, so we use the chat id as the presence proxy.
-    'telegram'      => env_str('TELEGRAM_CHATID') !== '',
-    'blank_removal' => env_str('REMOVE_BLANK_THRESHOLD') !== '',
-    'jpeg'          => env_bool('USE_JPEG_COMPRESSION'),
+    'ocr'           => !empty($_ocr['enabled']),
+    'ftp'           => !empty($_ftp['enabled']),
+    'telegram'      => $_telegramOn,
+    'blank_removal' => $PROC['blank_threshold'] !== '',
+    'jpeg'          => !empty($PROC['jpeg']),
 );
 
 /**

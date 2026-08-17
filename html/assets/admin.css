@@ -83,11 +83,16 @@ a { color: var(--primary); }
 }
 
 /* Tabs */
-.tabs { display: flex; gap: .3rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: .3rem; margin-bottom: 1.1rem; }
+.tabs {
+    display: flex; gap: .3rem; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: .3rem; margin-bottom: 1.1rem;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
     appearance: none; cursor: pointer; font: inherit; font-weight: 600; font-size: .85rem;
-    flex: 1; border: none; background: transparent; color: var(--text-dim);
-    border-radius: 9px; padding: .55rem .4rem; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    flex: 1 0 auto; white-space: nowrap; border: none; background: transparent; color: var(--text-dim);
+    border-radius: 9px; padding: .55rem .7rem; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
     transition: background .15s, color .15s;
 }
 .tab i { font-size: .8rem; }

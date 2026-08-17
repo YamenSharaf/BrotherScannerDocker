@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/config.php';
+require_once __DIR__ . '/../settings.php'; // $RESOLUTIONS, $MODES, $MODE_LABELS (shared with the scan page)
 
 require_admin();
 
@@ -51,6 +52,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'from'     => trim($_POST['smtp_from'] ?? ''),
             );
             $flash = config_save($cfg) ? array('ok', 'SMTP settings saved.') : array('err', 'Could not write config (/config not writable?).');
+
+        } elseif ($action === 'save_processing') {
+            $res = trim($_POST['proc_resolution'] ?? '');
+            if (!in_array($res, $RESOLUTIONS, true)) { $res = '300'; }
+            $mode = (string) ($_POST['proc_mode'] ?? '');
+            if (!in_array($mode, $MODES, true)) { $mode = '24bit Color[Fast]'; }
+            $thr = '';
+            if (isset($_POST['blank_on'])) {
+                $thr = trim($_POST['blank_threshold'] ?? '');
+                $thr = ($thr !== '' && is_numeric($thr)) ? $thr : '0.3';
+            }
+            $cfg['processing'] = array(
+                'resolution'      => $res,
+                'mode'            => $mode,
+                'blank_threshold' => $thr,
+                'jpeg'            => isset($_POST['jpeg_on']),
+            );
+            $flash = config_save($cfg) ? array('ok', 'Processing settings saved.') : array('err', 'Could not write config.');
+
+        } elseif ($action === 'save_integrations') {
+            $cfg['ocr'] = array(
+                'enabled'         => isset($_POST['ocr_on']),
+                'server'          => trim($_POST['ocr_server'] ?? ''),
+                'port'            => trim($_POST['ocr_port'] ?? ''),
+                'path'            => trim($_POST['ocr_path'] ?? ''),
+                'remove_original' => isset($_POST['ocr_remove']),
+            );
+            $cfg['ftp'] = array(
+                'enabled'  => isset($_POST['ftp_on']),
+                'host'     => trim($_POST['ftp_host'] ?? ''),
+                'user'     => trim($_POST['ftp_user'] ?? ''),
+                'password' => (string) ($_POST['ftp_pass'] ?? ''),
+                'path'     => trim($_POST['ftp_path'] ?? '') !== '' ? trim($_POST['ftp_path']) : '/scans/',
+            );
+            $cfg['sync'] = array(
+                'enabled'  => isset($_POST['sync_on']),
+                'host'     => trim($_POST['sync_host'] ?? ''),
+                'user'     => trim($_POST['sync_user'] ?? ''),
+                'password' => (string) ($_POST['sync_pass'] ?? ''),
+                'path'     => trim($_POST['sync_path'] ?? ''),
+            );
+            $flash = config_save($cfg) ? array('ok', 'Integrations saved.') : array('err', 'Could not write config.');
 
         } elseif ($action === 'save_addressbook') {
             $contacts = array();
@@ -112,6 +155,10 @@ $tg    = $chmap['telegram'] ?? array('enabled' => false, 'token' => '', 'chat_id
 $dc    = $chmap['discord']  ?? array('enabled' => false, 'webhook_url' => '');
 $smtp  = config_smtp($cfg);
 $dcApp = config_discord($cfg);
+$proc  = config_processing($cfg);
+$ocr   = config_ocr($cfg);
+$ftp   = config_ftp($cfg);
+$sync  = config_sync($cfg);
 $contacts = config_contacts($cfg);
 $token = csrf_token();
 $h = function ($s) { return htmlspecialchars((string) $s); };
@@ -142,8 +189,10 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
 
         <div class="tabs" role="tablist">
             <button class="tab" data-tab="notifications"><i class="fas fa-bell"></i> Notifications</button>
+            <button class="tab" data-tab="addressbook"><i class="fas fa-address-book"></i> Recipients</button>
             <button class="tab" data-tab="smtp"><i class="fas fa-server"></i> SMTP</button>
-            <button class="tab" data-tab="addressbook"><i class="fas fa-address-book"></i> Address Book</button>
+            <button class="tab" data-tab="processing"><i class="fas fa-magic"></i> Processing</button>
+            <button class="tab" data-tab="integrations"><i class="fas fa-plug"></i> Integrations</button>
         </div>
 
         <!-- ============ NOTIFICATIONS ============ -->
@@ -277,6 +326,102 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
                 <div class="actions"><button class="btn" type="submit"><i class="fas fa-plus"></i> Add</button></div>
             </form>
         </section>
+
+        <!-- ============ PROCESSING ============ -->
+        <section class="tabpane" id="tab-processing">
+            <p class="desc">Defaults for how scans are captured and cleaned up. The scan screen's per-scan pickers override the resolution/mode for a single scan.</p>
+            <form method="post" action="/admin/">
+                <input type="hidden" name="csrf" value="<?php echo $h($token); ?>">
+                <input type="hidden" name="action" value="save_processing">
+                <input type="hidden" name="active_tab" value="processing">
+                <div class="card">
+                    <h2 style="margin-bottom:.9rem"><span class="type-ico"><i class="fas fa-image"></i></span> Scan defaults</h2>
+                    <div class="grid2">
+                        <div class="field"><label>Default resolution</label>
+                            <select name="proc_resolution">
+                                <?php foreach ($RESOLUTIONS as $r) { ?><option value="<?php echo $h($r); ?>" <?php echo $proc['resolution'] === $r ? 'selected' : ''; ?>><?php echo $h($r); ?> dpi</option><?php } ?>
+                            </select>
+                        </div>
+                        <div class="field"><label>Default color mode</label>
+                            <select name="proc_mode">
+                                <?php foreach ($MODES as $m) { ?><option value="<?php echo $h($m); ?>" <?php echo $proc['mode'] === $m ? 'selected' : ''; ?>><?php echo $h($MODE_LABELS[$m] ?? $m); ?></option><?php } ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="row" style="margin-bottom:.6rem">
+                        <h2><span class="type-ico"><i class="fas fa-eraser"></i></span> Blank-page removal</h2>
+                        <label class="switch"><input type="checkbox" name="blank_on" <?php echo $proc['blank_threshold'] !== '' ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
+                    </div>
+                    <div class="field"><label>Threshold (0–1, higher removes more)</label><input type="text" name="blank_threshold" value="<?php echo $h($proc['blank_threshold'] !== '' ? $proc['blank_threshold'] : '0.3'); ?>" placeholder="0.3"></div>
+                </div>
+                <div class="card">
+                    <div class="row">
+                        <h2><span class="type-ico"><i class="fas fa-file-image"></i></span> JPEG compression</h2>
+                        <label class="switch"><input type="checkbox" name="jpeg_on" <?php echo !empty($proc['jpeg']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
+                    </div>
+                    <p class="desc" style="margin:.5rem 0 0">Smaller PDFs at a small quality cost.</p>
+                </div>
+                <div class="actions"><button class="btn primary" type="submit"><i class="fas fa-save"></i> Save processing</button></div>
+            </form>
+        </section>
+
+        <!-- ============ INTEGRATIONS ============ -->
+        <section class="tabpane" id="tab-integrations">
+            <p class="desc">External services applied after a scan completes. Tests use the values in the fields — no need to save first.</p>
+            <form method="post" action="/admin/">
+                <input type="hidden" name="csrf" value="<?php echo $h($token); ?>">
+                <input type="hidden" name="action" value="save_integrations">
+                <input type="hidden" name="active_tab" value="integrations">
+
+                <div class="card">
+                    <div class="row" style="margin-bottom:.6rem">
+                        <h2><span class="type-ico"><i class="fas fa-font"></i></span> OCR</h2>
+                        <label class="switch"><input type="checkbox" name="ocr_on" <?php echo !empty($ocr['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
+                    </div>
+                    <p class="desc" style="margin:-.2rem 0 .6rem">Sends the scan to an OCR microservice and saves a searchable copy (…-ocr.pdf).</p>
+                    <div class="grid2">
+                        <div class="field"><label>Server</label><input type="text" name="ocr_server" value="<?php echo $h($ocr['server']); ?>" placeholder="192.168.1.10"></div>
+                        <div class="field"><label>Port</label><input type="text" name="ocr_port" value="<?php echo $h($ocr['port']); ?>" placeholder="8080"></div>
+                    </div>
+                    <div class="field"><label>Path</label><input type="text" name="ocr_path" value="<?php echo $h($ocr['path']); ?>" placeholder="ocr.php"></div>
+                    <label class="switch"><input type="checkbox" name="ocr_remove" <?php echo !empty($ocr['remove_original']) ? 'checked' : ''; ?>><span class="track"></span> Delete original after OCR</label>
+                    <div class="test-row" style="margin-top:.9rem"><button type="button" class="btn test-btn" data-type="ocr"><i class="fas fa-plug"></i> Test reachability</button><span class="test-result"></span></div>
+                </div>
+
+                <div class="card">
+                    <div class="row" style="margin-bottom:.6rem">
+                        <h2><span class="type-ico"><i class="fas fa-upload"></i></span> FTP upload</h2>
+                        <label class="switch"><input type="checkbox" name="ftp_on" <?php echo !empty($ftp['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
+                    </div>
+                    <div class="field"><label>Host</label><input type="text" name="ftp_host" value="<?php echo $h($ftp['host']); ?>" placeholder="ftp.example.com"></div>
+                    <div class="grid2">
+                        <div class="field"><label>Username</label><input type="text" name="ftp_user" value="<?php echo $h($ftp['user']); ?>" autocomplete="off"></div>
+                        <div class="field"><label>Password</label><input type="password" name="ftp_pass" value="<?php echo $h($ftp['password']); ?>" autocomplete="new-password"></div>
+                    </div>
+                    <div class="field"><label>Path</label><input type="text" name="ftp_path" value="<?php echo $h($ftp['path']); ?>" placeholder="/scans/"></div>
+                    <div class="test-row"><button type="button" class="btn test-btn" data-type="ftp"><i class="fas fa-plug"></i> Test connection</button><span class="test-result"></span></div>
+                </div>
+
+                <div class="card">
+                    <div class="row" style="margin-bottom:.6rem">
+                        <h2><span class="type-ico"><i class="fas fa-sync"></i></span> Sync trigger (SSH)</h2>
+                        <label class="switch"><input type="checkbox" name="sync_on" <?php echo !empty($sync['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
+                    </div>
+                    <p class="desc" style="margin:-.2rem 0 .6rem">SSHes to a host and touches the saved file to trigger inotify-based sync (e.g. Synology Drive).</p>
+                    <div class="field"><label>Host</label><input type="text" name="sync_host" value="<?php echo $h($sync['host']); ?>"></div>
+                    <div class="grid2">
+                        <div class="field"><label>Username</label><input type="text" name="sync_user" value="<?php echo $h($sync['user']); ?>" autocomplete="off"></div>
+                        <div class="field"><label>Password</label><input type="password" name="sync_pass" value="<?php echo $h($sync['password']); ?>" autocomplete="new-password"></div>
+                    </div>
+                    <div class="field"><label>Path</label><input type="text" name="sync_path" value="<?php echo $h($sync['path']); ?>" placeholder="/volume1/scans/"></div>
+                    <div class="test-row"><button type="button" class="btn test-btn" data-type="ssh"><i class="fas fa-plug"></i> Test SSH</button><span class="test-result"></span></div>
+                </div>
+
+                <div class="actions"><button class="btn primary" type="submit"><i class="fas fa-save"></i> Save integrations</button></div>
+            </form>
+        </section>
     </div>
 
     <script>
@@ -298,7 +443,10 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
             var FIELDS = {
                 telegram: { token: 'tg_token', chat_id: 'tg_chat' },
                 discord:  { webhook_url: 'dc_webhook', username: 'dc_username', avatar_url: 'dc_avatar' },
-                email:    { to: 'email_to', host: 'smtp_host', port: 'smtp_port', security: 'smtp_security', username: 'smtp_user', password: 'smtp_pass', from: 'smtp_from' }
+                email:    { to: 'email_to', host: 'smtp_host', port: 'smtp_port', security: 'smtp_security', username: 'smtp_user', password: 'smtp_pass', from: 'smtp_from' },
+                ocr:      { server: 'ocr_server', port: 'ocr_port', path: 'ocr_path' },
+                ftp:      { host: 'ftp_host', user: 'ftp_user', password: 'ftp_pass', path: 'ftp_path' },
+                ssh:      { host: 'sync_host', user: 'sync_user', password: 'sync_pass', path: 'sync_path' }
             };
             function val(name) { var el = document.querySelector('[name="' + name + '"]'); return el ? el.value : ''; }
             // Remove a contact: set the shared form's action + id, then submit.

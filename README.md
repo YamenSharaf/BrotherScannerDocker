@@ -97,6 +97,8 @@ There are a number of additional options explained in the following.
 
 You can configure the tool via environment variables:
 
+> **Note:** the processing and integration settings — `RESOLUTION`, `MODE`, `REMOVE_BLANK_THRESHOLD`, `USE_JPEG_COMPRESSION`, `REMOVE_ORIGINAL_AFTER_OCR`, and the `FTP_*`, `SSH_*`, `OCR_*` groups — are now managed in the **Admin dashboard** (Processing and Integrations tabs, see below). The environment variables only *seed* the initial values on first run; once you mount a `/config` volume, the dashboard is the source of truth.
+
 | Variable | Type | Description |
 | ------------- | ------------- | ------------- |
 | NAME  | mandatory | Arbitrary (avoid spaces) name to give your scanner. Displayed on scanner, if multiple servers are running. |
@@ -223,8 +225,10 @@ Maybe one day an OpenAPI Spec will be included.
 Setting `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) enables a password-protected admin dashboard at `/admin`, reachable from the gear icon in the scanner UI. It's organised into tabs and lets you configure everything without editing environment variables:
 
 - **Notifications** — short *alert* pings ("a scan completed") to **Telegram** and **Discord** channels.
+- **Recipients** (address book) — people who receive a **copy of the scanned PDF**. Each recipient can be reached on email (attachment), Telegram (document — uses the bot token from the Notifications tab + a per-recipient chat id), and/or Discord (file to a channel webhook, with an optional `@mention`). Mark a recipient *"Every scan"* to deliver every completed document to them automatically.
 - **SMTP** — outgoing mail server (host, port, security, credentials, from address) used to email scans.
-- **Address Book** — people who receive a **copy of the scanned PDF**. Each recipient can be reached on email (attachment), Telegram (document — uses the bot token from the Notifications tab + a per-recipient chat id), and/or Discord (file to a channel webhook, with an optional `@mention`). Mark a recipient *"Every scan"* to deliver every completed document to them automatically.
+- **Processing** — default scan **resolution** and **color mode**, **blank-page removal** (with threshold), and **JPEG compression**. The scan screen's per-scan pickers override the resolution/mode for a single scan.
+- **Integrations** — post-scan services: **OCR** (searchable-PDF microservice), **FTP upload**, and the **SSH sync trigger** (touches the saved file on a remote host to kick off inotify-based sync, e.g. Synology Drive). Each has a **Test** button that checks connectivity using the current field values.
 
 Recipients **not** marked "Every scan" instead appear as a **"Send a copy to"** picker on the scan screen, so a walk-up user can send an individual scan to them on demand (in addition to the default recipients). The picker only shows names + channel icons, never the addresses.
 

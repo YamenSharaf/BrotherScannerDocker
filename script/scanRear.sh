@@ -4,6 +4,8 @@
 
 #override environment, as brscan is screwing it up:
 export $(grep -v '^#' /opt/brother/scanner/env.txt | xargs)
+# Override with dashboard-managed config (processing + integrations) from config.json.
+eval "$(php /var/www/html/lib/scanenv.php)"
 
 # Report progress to the web UI via a small state file that active.php reads.
 statefile="/tmp/scanner.state"
