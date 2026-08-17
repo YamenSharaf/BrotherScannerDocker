@@ -189,6 +189,8 @@ The GUI is mobile-first and follows your device's light/dark theme automatically
 
 A **Double-sided** toggle (on by default) controls this. Switch it off for a single-sided document and the GUI hides the rear button, relabels the primary button to **"Scan document"**, and processes immediately — no ~2 minute wait for rear pages. The choice is remembered per browser.
 
+The scan screen also offers per-scan **Resolution** and **Color mode** pickers (B&W / Gray / True Gray / Color) — the exact modes the Brother driver supports. Both are remembered per browser; the `RESOLUTION` and `MODE` env vars set their defaults.
+
 The GUI also shows read-only "chips" for whatever post-processing you have configured (OCR, blank-page removal, FTP upload, Telegram, JPEG compression, resolution), so you can see what will happen to a scan.
 
 The "Scan to image" and "Scan to OCR" buttons are **hidden by default**, because the shipped `scantoimage-*.sh` / `scantoocr-*.sh` scripts are unimplemented stubs. Mount your own script and set the matching `ENABLE_GUI_*` variable to show the button. Button labels are fixed honest defaults; to reword or localize them, edit `html/settings.php`. Example environment:

@@ -66,6 +66,22 @@ if (!in_array($RESOLUTION, $RESOLUTIONS, true)) {
 $RESOLUTIONS = array_values(array_unique($RESOLUTIONS));
 sort($RESOLUTIONS, SORT_NUMERIC);
 
+// Scan colour mode. The exact strings are what scanimage's --mode expects (these
+// are the standard brscan4 modes); the labels are friendlier for the picker. The
+// default matches the scanner's own default; the GUI remembers the user's choice.
+$MODE   = env_str('MODE', '24bit Color[Fast]');
+$MODES  = array('Black & White', 'Gray[Error Diffusion]', 'True Gray', '24bit Color', '24bit Color[Fast]');
+if (!in_array($MODE, $MODES, true)) {
+    array_unshift($MODES, $MODE);
+}
+$MODE_LABELS = array(
+    'Black & White'         => 'B&W',
+    'Gray[Error Diffusion]' => 'Gray',
+    'True Gray'             => 'True Gray',
+    '24bit Color'           => 'Color',
+    '24bit Color[Fast]'     => 'Color (Fast)',
+);
+
 /**
  * Post-processing capabilities that are actually configured. Surfaced in the
  * GUI as read-only "chips" so the user can see what will happen to a scan —

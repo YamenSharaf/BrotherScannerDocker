@@ -14,6 +14,9 @@
   # GUI_RESOLUTION is an optional per-scan override from the web UI (passed via
   # sudo env_keep); falls back to the RESOLUTION env default, then 300.
   resolution="${GUI_RESOLUTION:-${RESOLUTION:-300}}"
+  # GUI_MODE is the optional per-scan colour mode (same mechanism); falls back to
+  # the MODE env default, then the scanner's default.
+  mode="${GUI_MODE:-${MODE:-24bit Color[Fast]}}"
 
   gm_opts=(-page A4+0+0)
   if [ "$USE_JPEG_COMPRESSION" = "true" ]; then
@@ -40,7 +43,7 @@
     # `brother4:net1;dev0` device name gets passed to scanimage, which it refuses as an invalid device name for some reason.
     # Let's use the default scanner for now
     # scanimage -l 0 -t 0 -x 215 -y 297 --device-name="$1" --resolution="$2" --batch="$3"
-    scanimage -l 0 -t 0 -x 215 -y 297 --format=pnm --resolution="$2" --batch="$3"
+    scanimage -l 0 -t 0 -x 215 -y 297 --format=pnm --mode "$mode" --resolution="$2" --batch="$3"
   }
 
   if [ "$(which usleep 2>/dev/null)" != '' ]; then

@@ -26,6 +26,12 @@ if ($resolution !== '' && in_array((string) $resolution, $RESOLUTIONS, true)) {
         putenv('GUI_RESOLUTION=' . $resolution);
 }
 
+// Optional per-scan colour mode, validated against the supported list.
+$mode = (string) ($_POST['mode'] ?? $_GET['mode'] ?? '');
+if ($mode !== '' && in_array($mode, $MODES, true)) {
+        putenv('GUI_MODE=' . $mode);
+}
+
 // Optional per-scan recipients (address-book ids from the GUI picker), delivered
 // in addition to the "Every scan" defaults. Sanitised to hex+comma; deliver.php
 // only sends to ids matching an enabled contact, so unknown ids are harmless.

@@ -88,7 +88,7 @@ echo "setting up webserver:"
 if [ "$WEBSERVER" == "true" ]; then
   # Let the web layer pass a per-scan resolution to the scan scripts through
   # sudo (scan.php sets GUI_RESOLUTION via putenv; env_keep preserves it).
-  echo "Defaults env_keep += \"GUI_RESOLUTION GUI_RECIPIENTS GUI_SKIP_SAVE GUI_SIMPLEX\"" >>/etc/sudoers
+  echo "Defaults env_keep += \"GUI_RESOLUTION GUI_MODE GUI_RECIPIENTS GUI_SKIP_SAVE GUI_SIMPLEX\"" >>/etc/sudoers
   echo "www-data ALL=($RUN_USER) NOPASSWD:ALL" >>/etc/sudoers
 
   echo "starting webserver for API & GUI..."

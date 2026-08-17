@@ -530,6 +530,15 @@ foreach (config_contacts() as $c) {
             </div>
         </div>
 
+        <div class="reso">
+            <div class="reso-head"><i class="fas fa-palette"></i> Color mode</div>
+            <div class="reso-opts" id="modeOpts" data-default="<?php echo htmlspecialchars($MODE); ?>">
+                <?php foreach ($MODES as $m) { ?>
+                    <button type="button" class="reso-pill" data-mode="<?php echo htmlspecialchars($m); ?>"><?php echo htmlspecialchars($MODE_LABELS[$m] ?? $m); ?></button>
+                <?php } ?>
+            </div>
+        </div>
+
         <div class="reso duplex-row">
             <label class="dup-pill on" id="duplexPill">
                 <input type="checkbox" id="duplex" checked>
@@ -654,6 +663,29 @@ foreach (config_contacts() as $c) {
                 });
             }
 
+            /* ---------- Colour mode selector ---------- */
+            var modeOpts = document.getElementById("modeOpts");
+            var modePills = modeOpts ? Array.prototype.slice.call(modeOpts.querySelectorAll(".reso-pill")) : [];
+            var availableModes = modePills.map(function (b) { return b.getAttribute("data-mode"); });
+            var defaultMode = modeOpts ? modeOpts.getAttribute("data-default") : "";
+            var selectedMode = localStorage.getItem("scanner-mode");
+            if (availableModes.indexOf(selectedMode) === -1) {
+                selectedMode = availableModes.indexOf(defaultMode) !== -1 ? defaultMode : (availableModes[0] || "");
+            }
+            function markMode() {
+                modePills.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-mode") === selectedMode); });
+            }
+            markMode();
+            if (modeOpts) {
+                modeOpts.addEventListener("click", function (e) {
+                    var b = e.target.closest(".reso-pill");
+                    if (!b) return;
+                    selectedMode = b.getAttribute("data-mode");
+                    localStorage.setItem("scanner-mode", selectedMode);
+                    markMode();
+                });
+            }
+
             /* ---------- Per-scan recipient picker ---------- */
             document.querySelectorAll("#recipOpts input").forEach(function (cb) {
                 cb.addEventListener("change", function () {
@@ -758,6 +790,7 @@ foreach (config_contacts() as $c) {
                     var body = new URLSearchParams({
                         target: target,
                         resolution: selectedReso,
+                        mode: selectedMode,
                         recipients: selectedRecipients(),
                         skip_save: (skipSave && skipSave.checked) ? "1" : "",
                         simplex: (duplex && !duplex.checked) ? "1" : ""
