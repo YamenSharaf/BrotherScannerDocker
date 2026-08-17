@@ -319,6 +319,20 @@ foreach (config_contacts() as $c) {
         .skip-pill input { display: none; }
         .skip-pill.on { background: var(--warn); border-color: transparent; color: #fff; box-shadow: var(--shadow); }
 
+        /* ---- Duplex / single-sided toggle ---- */
+        .duplex-row { display: flex; justify-content: center; margin-top: 1.3rem; }
+        .dup-pill {
+            display: inline-flex; align-items: center; gap: .45rem;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+            border-radius: 999px; padding: .45rem .9rem; font-size: .84rem; font-weight: 600;
+            cursor: pointer; box-shadow: var(--shadow-sm);
+            transition: transform .12s, background .2s, border-color .2s, color .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .dup-pill:active { transform: scale(.97); }
+        .dup-pill input { display: none; }
+        .dup-pill.on { background: var(--primary); border-color: transparent; color: var(--primary-contrast); box-shadow: var(--shadow); }
+
         /* ---- Action buttons ---- */
         .actions {
             display: flex; flex-direction: column; gap: .7rem;
@@ -516,6 +530,13 @@ foreach (config_contacts() as $c) {
             </div>
         </div>
 
+        <div class="reso duplex-row">
+            <label class="dup-pill on" id="duplexPill">
+                <input type="checkbox" id="duplex" checked>
+                <i class="fas fa-copy"></i> <span class="dup-text">Double-sided</span>
+            </label>
+        </div>
+
         <?php if (!empty($pickable)) { ?>
         <div class="reso recipients">
             <div class="reso-head"><i class="fas fa-paper-plane"></i> Send a copy to</div>
@@ -653,6 +674,35 @@ foreach (config_contacts() as $c) {
                 });
             }
 
+            /* ---------- Duplex / single-sided toggle ---------- */
+            var duplex = document.getElementById("duplex");
+            var dupPill = document.getElementById("duplexPill");
+            var rearBtn = document.querySelector('.trigger-scan[data-trigger="email"]');
+            var frontBtn = document.querySelector('.trigger-scan[data-trigger="file"]');
+            var frontLabel = frontBtn ? frontBtn.querySelector(".b-label") : null;
+            var frontHint = frontBtn ? frontBtn.querySelector(".b-hint") : null;
+            var frontLabelDuplex = frontLabel ? frontLabel.textContent : "";
+            var frontHintDuplex = frontHint ? frontHint.textContent : "";
+            function applyDuplex(on) {
+                if (dupPill) {
+                    dupPill.classList.toggle("on", on);
+                    var t = dupPill.querySelector(".dup-text"); if (t) { t.textContent = on ? "Double-sided" : "Single-sided"; }
+                    var i = dupPill.querySelector("i"); if (i) { i.className = on ? "fas fa-copy" : "fas fa-file"; }
+                }
+                if (rearBtn) { rearBtn.style.display = on ? "" : "none"; }
+                if (frontLabel) { frontLabel.textContent = on ? frontLabelDuplex : "Scan document"; }
+                if (frontHint) { frontHint.textContent = on ? frontHintDuplex : "Single-sided — processed right away"; }
+            }
+            if (duplex) {
+                var savedDup = localStorage.getItem("scanner-duplex");
+                duplex.checked = (savedDup === null) ? true : (savedDup === "1");
+                applyDuplex(duplex.checked);
+                duplex.addEventListener("change", function () {
+                    localStorage.setItem("scanner-duplex", duplex.checked ? "1" : "0");
+                    applyDuplex(duplex.checked);
+                });
+            }
+
             /* ---------- Status polling ---------- */
             var STATES = {
                 idle:           { cls: "state-idle",    icon: "far fa-smile",           title: "Ready to scan",          sub: "Pick an action below" },
@@ -709,7 +759,8 @@ foreach (config_contacts() as $c) {
                         target: target,
                         resolution: selectedReso,
                         recipients: selectedRecipients(),
-                        skip_save: (skipSave && skipSave.checked) ? "1" : ""
+                        skip_save: (skipSave && skipSave.checked) ? "1" : "",
+                        simplex: (duplex && !duplex.checked) ? "1" : ""
                     });
                     fetch("/scan.php", { method: "POST", body: body })
                         .then(function () { toast(label + " started"); })

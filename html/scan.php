@@ -40,6 +40,11 @@ if (!empty($_POST['skip_save']) || !empty($_GET['skip_save'])) {
         putenv('GUI_SKIP_SAVE=1');
 }
 
+// Single-sided mode: don't wait for rear pages — process right after the front.
+if (!empty($_POST['simplex']) || !empty($_GET['simplex'])) {
+        putenv('GUI_SIMPLEX=1');
+}
+
 if (in_array($target, $SCAN_TARGETS, true)) {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //return immediately

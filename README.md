@@ -187,6 +187,8 @@ The GUI is mobile-first and follows your device's light/dark theme automatically
 - **Scan front pages** (`file` target) — starts a document and opens the ~2 minute window
 - **Scan rear pages** (`email` target) — scans the backs of the same stack; pages are interleaved automatically for fake-duplex
 
+A **Double-sided** toggle (on by default) controls this. Switch it off for a single-sided document and the GUI hides the rear button, relabels the primary button to **"Scan document"**, and processes immediately — no ~2 minute wait for rear pages. The choice is remembered per browser.
+
 The GUI also shows read-only "chips" for whatever post-processing you have configured (OCR, blank-page removal, FTP upload, Telegram, JPEG compression, resolution), so you can see what will happen to a scan.
 
 The "Scan to image" and "Scan to OCR" buttons are **hidden by default**, because the shipped `scantoimage-*.sh` / `scantoocr-*.sh` scripts are unimplemented stubs. Mount your own script and set the matching `ENABLE_GUI_*` variable to show the button. Button labels are fixed honest defaults; to reword or localize them, edit `html/settings.php`. Example environment:

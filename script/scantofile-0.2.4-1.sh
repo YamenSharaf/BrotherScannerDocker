@@ -58,14 +58,16 @@
     scan_cmd "$device" "$resolution" "$tmp_output_file"
   fi
 
-  set_state waiting
-
-  #only convert when no back pages are being scanned:
+  # Duplex (default): wait ~120s for the rear-pages button before converting.
+  # Single-sided (GUI_SIMPLEX=1): skip the wait and convert immediately.
   (
-    if [ "$(which usleep 2>/dev/null)" != '' ]; then
-      usleep 120000000
-    else
-      sleep 120
+    if [ "${GUI_SIMPLEX:-}" != "1" ]; then
+      set_state waiting
+      if [ "$(which usleep 2>/dev/null)" != '' ]; then
+        usleep 120000000
+      else
+        sleep 120
+      fi
     fi
 
     (
