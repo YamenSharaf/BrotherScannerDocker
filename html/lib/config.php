@@ -34,10 +34,39 @@ function config_default()
     return array(
         'version'       => 1,
         'notifications' => array('channels' => $channels),
+        'discord'       => config_discord_defaults(),
         'smtp'          => config_smtp_defaults(),
         'email'         => array('enabled' => false, 'subject' => 'Scanner notification'),
         'address_book'  => array(),
     );
+}
+
+/** Global appearance for outgoing Discord webhook messages (notifications + delivery). */
+function config_discord_defaults()
+{
+    return array(
+        'username'   => 'Brother Scanner',
+        'avatar_url' => 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/brother.png',
+    );
+}
+
+function config_discord($cfg = null)
+{
+    if ($cfg === null) {
+        $cfg = config_load();
+    }
+    $d = isset($cfg['discord']) && is_array($cfg['discord']) ? $cfg['discord'] : array();
+    return array_merge(config_discord_defaults(), $d);
+}
+
+/** Build a Discord webhook payload, applying the username/avatar appearance. */
+function discord_payload($content, $appearance = null)
+{
+    $ap = ($appearance !== null) ? $appearance : config_discord();
+    $payload = array('content' => $content);
+    if (!empty($ap['username']))   $payload['username']   = $ap['username'];
+    if (!empty($ap['avatar_url'])) $payload['avatar_url'] = $ap['avatar_url'];
+    return $payload;
 }
 
 function config_smtp_defaults()

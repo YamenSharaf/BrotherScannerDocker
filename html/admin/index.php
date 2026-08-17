@@ -34,6 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'webhook_url' => trim($_POST['dc_webhook'] ?? ''),
             );
             $cfg['notifications']['channels'] = array_merge(array($telegram, $discord), $others);
+            // Global appearance for all Discord webhook messages (alerts + delivery).
+            $cfg['discord'] = array(
+                'username'   => trim($_POST['dc_username'] ?? ''),
+                'avatar_url' => trim($_POST['dc_avatar'] ?? ''),
+            );
             $flash = config_save($cfg) ? array('ok', 'Notification settings saved.') : array('err', 'Could not write config (/config not writable?).');
 
         } elseif ($action === 'save_smtp') {
@@ -106,6 +111,7 @@ foreach (config_channels($cfg) as $c) { $chmap[$c['id'] ?? ''] = $c; }
 $tg    = $chmap['telegram'] ?? array('enabled' => false, 'token' => '', 'chat_id' => '');
 $dc    = $chmap['discord']  ?? array('enabled' => false, 'webhook_url' => '');
 $smtp  = config_smtp($cfg);
+$dcApp = config_discord($cfg);
 $contacts = config_contacts($cfg);
 $token = csrf_token();
 $h = function ($s) { return htmlspecialchars((string) $s); };
@@ -164,6 +170,11 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
                         <label class="switch"><input type="checkbox" name="dc_enabled" <?php echo !empty($dc['enabled']) ? 'checked' : ''; ?>><span class="track"></span> Enabled</label>
                     </div>
                     <div class="field"><label>Webhook URL</label><input type="text" name="dc_webhook" value="<?php echo $h($dc['webhook_url'] ?? ''); ?>" placeholder="https://discord.com/api/webhooks/..." autocomplete="off" spellcheck="false"></div>
+                    <div class="grid2">
+                        <div class="field"><label>Username</label><input type="text" name="dc_username" value="<?php echo $h($dcApp['username']); ?>" placeholder="Brother Scanner" autocomplete="off"></div>
+                        <div class="field"><label>Avatar URL</label><input type="text" name="dc_avatar" value="<?php echo $h($dcApp['avatar_url']); ?>" placeholder="https://…/brother.png" autocomplete="off" spellcheck="false"></div>
+                    </div>
+                    <p class="desc" style="margin:-.2rem 0 .6rem">Applies to all Discord webhook messages — alerts and scan delivery.</p>
                     <div class="test-row"><button type="button" class="btn test-btn" data-type="discord"><i class="fas fa-paper-plane"></i> Send test</button><span class="test-result"></span></div>
                 </div>
 
@@ -286,7 +297,7 @@ $h = function ($s) { return htmlspecialchars((string) $s); };
             // Inline "Send test" — posts the current (unsaved) field values.
             var FIELDS = {
                 telegram: { token: 'tg_token', chat_id: 'tg_chat' },
-                discord:  { webhook_url: 'dc_webhook' },
+                discord:  { webhook_url: 'dc_webhook', username: 'dc_username', avatar_url: 'dc_avatar' },
                 email:    { to: 'email_to', host: 'smtp_host', port: 'smtp_port', security: 'smtp_security', username: 'smtp_user', password: 'smtp_pass', from: 'smtp_from' }
             };
             function val(name) { var el = document.querySelector('[name="' + name + '"]'); return el ? el.value : ''; }

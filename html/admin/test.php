@@ -34,6 +34,8 @@ switch ($type) {
     case 'discord':
         $r = notify_test('discord', array(
             'webhook_url' => $_POST['webhook_url'] ?? '',
+            'username'    => $_POST['username'] ?? '',
+            'avatar_url'  => $_POST['avatar_url'] ?? '',
         ), $message);
         break;
 

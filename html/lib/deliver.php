@@ -93,7 +93,7 @@ function deliver_discord($webhook, $content, $path, $filename)
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => array(
-            'payload_json' => json_encode(array('content' => $content)),
+            'payload_json' => json_encode(discord_payload($content)),
             'file1'        => new CURLFile($path, 'application/pdf', $filename),
         ),
         CURLOPT_TIMEOUT => 120,

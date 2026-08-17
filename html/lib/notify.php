@@ -45,13 +45,13 @@ function notify_telegram($ch, $message)
     return array('ok' => ($r['code'] >= 200 && $r['code'] < 300), 'channel' => 'telegram', 'code' => $r['code'], 'error' => $r['error']);
 }
 
-function notify_discord($ch, $message)
+function notify_discord($ch, $message, $appearance = null)
 {
     $url = isset($ch['webhook_url']) ? trim($ch['webhook_url']) : '';
     if ($url === '') {
         return array('ok' => false, 'channel' => 'discord', 'error' => 'missing webhook_url');
     }
-    $r = notify_http($url, json_encode(array('content' => $message)), array('Content-Type: application/json'));
+    $r = notify_http($url, json_encode(discord_payload($message, $appearance)), array('Content-Type: application/json'));
     return array('ok' => ($r['code'] >= 200 && $r['code'] < 300), 'channel' => 'discord', 'code' => $r['code'], 'error' => $r['error']);
 }
 
@@ -90,7 +90,10 @@ function notify_test($type, $params, $message)
         case 'telegram':
             return notify_telegram($params, $message);
         case 'discord':
-            return notify_discord($params, $message);
+            $ap = (isset($params['username']) || isset($params['avatar_url']))
+                ? array('username' => $params['username'] ?? '', 'avatar_url' => $params['avatar_url'] ?? '')
+                : null;
+            return notify_discord($params, $message, $ap);
         case 'email':
             return smtp_send(
                 isset($params['smtp']) ? $params['smtp'] : array(),
